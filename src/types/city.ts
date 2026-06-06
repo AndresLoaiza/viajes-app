@@ -9,7 +9,8 @@ export interface Place {
   id: string;
   name: string;
   description: string;
-  imageUrl: string;
+  images: string[];
+  mapsUrl?: string;
   category: string;
   tip?: string;
   bookingUrl?: string;
