@@ -14,7 +14,11 @@ export default function WelcomeScreen({ config, onStart }: Props) {
       {/* Background image with overlay */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${config.coverImage})`, opacity: 0.3 }}
+        style={{ backgroundImage: `url(${config.heroImage ?? config.coverImage})`, opacity: 0.45 }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(to bottom, rgba(0,39,118,0.55), rgba(0,39,118,0.25) 40%, rgba(0,39,118,0.7))' }}
       />
 
       {/* Decorative circles */}
@@ -29,7 +33,17 @@ export default function WelcomeScreen({ config, onStart }: Props) {
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-lg">
-        <div className="text-7xl mb-4 animate-bounce">{config.flag}</div>
+        {config.welcomeBadge ? (
+          <div className="mb-5 animate-bounce w-40 h-40 rounded-full overflow-hidden shadow-2xl ring-4 ring-white/70 bg-white">
+            <img
+              src={config.welcomeBadge}
+              alt={`Postal de ${config.name}`}
+              className="w-full h-full object-cover scale-110"
+            />
+          </div>
+        ) : (
+          <div className="text-7xl mb-4 animate-bounce">{config.flag}</div>
+        )}
 
         <h1
           className="font-display text-5xl font-bold text-white mb-3 leading-tight"

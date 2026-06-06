@@ -13,15 +13,24 @@ export default function SuccessScreen({ config, selections }: Props) {
       className="min-h-screen flex flex-col items-center justify-center px-6 text-center"
       style={{ backgroundColor: '#FFFDF5' }}
     >
-      {/* Animated checkmark */}
-      <div
-        className="w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-6 shadow-lg"
-        style={{ backgroundColor: '#009C3B' }}
-      >
-        ✓
-      </div>
-
-      <div className="text-5xl mb-4">🎉</div>
+      {/* Celebration illustration */}
+      {config.successImage ? (
+        <img
+          src={config.successImage}
+          alt=""
+          className="w-56 max-w-full mb-2 drop-shadow-md"
+        />
+      ) : (
+        <>
+          <div
+            className="w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-6 shadow-lg"
+            style={{ backgroundColor: '#009C3B' }}
+          >
+            ✓
+          </div>
+          <div className="text-5xl mb-4">🎉</div>
+        </>
+      )}
 
       <h1 className="font-display font-bold text-3xl text-gray-800 mb-3">
         ¡Lista enviada!
@@ -80,8 +89,15 @@ export default function SuccessScreen({ config, selections }: Props) {
         ))}
       </div>
 
-      <p className="text-gray-400 text-sm">
-        {config.flag} ¡Hasta Río! 🌴
+      <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
+        {config.welcomeBadge && (
+          <img
+            src={config.welcomeBadge}
+            alt=""
+            className="w-7 h-7 rounded-full object-cover ring-2 ring-white shadow-sm"
+          />
+        )}
+        ¡Hasta Río! 🌴
       </p>
     </div>
   );

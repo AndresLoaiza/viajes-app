@@ -41,7 +41,31 @@ El código está diseñado para usarse con cualquier ciudad. El 100% de los dato
 
 ## Decisiones técnicas
 - **Sin backend:** GitHub Pages (estático) + Formspree (form handler)
-- **Imágenes:** Unsplash CDN (foto específica por ID) + Picsum.photos con seeds (placeholder estable)
-- **`source.unsplash.com` deprecado** desde 2024 — usar `images.unsplash.com/photo-{ID}`
+- **Imágenes (fotos reales del lugar exacto):**
+  - Landmarks → Wikimedia Commons search API (libres, estables, hotlinkables)
+  - Venues (Padaria, Fala, Havaianas, Roxy) → TripAdvisor (`dynamic-media-cdn`) / Time Out
+  - Venues sin foto libre (Carretão, SO_Lo, Feira Hippie) → fallback botón "Ver fotos en Google Maps"
+  - Cada lugar: `images: string[]` (carrusel) + `mapsUrl` (enlace estable Google Maps)
+  - PlaceCard tiene `onError` por imagen: descarta automáticamente las que no cargan
+- **`source.unsplash.com` deprecado** desde 2024 — NO usar
+- **Validar imágenes en browser** (Playwright, naturalWidth>0), NO con urllib/curl (Wikimedia/TripAdvisor bloquean Python → falsos negativos)
 - **Tailwind v4** con `@tailwindcss/vite` — sin `tailwind.config.js`
 - **Deploy:** GitHub Actions push a main → auto-deploy Pages
+
+## Estado al cierre (2026-06-06)
+App completa y funcionando en dev. Git: 2 commits en `viajes-app/`.
+- ✅ UI completa estilo Brasil, 28 lugares, 6 categorías
+- ✅ Fotos reales por lugar + carrusel + enlace Maps (88 imgs, 0 rotas)
+- ✅ Selección con día preferido + notas, envío Formspree, success screen
+- ✅ CLAUDE.md, context.md, SETUP.md, GitHub Actions deploy
+
+### Pendiente (mañana / antes de publicar)
+1. Registrar Formspree con andres.9438@gmail.com → pegar ID en `src/data/cities/rio.ts` línea ~14 (`formspreeEndpoint`)
+2. Crear repo GitHub + actualizar `base` en `vite.config.ts` con nombre del repo
+3. Push → Settings > Pages > Source: GitHub Actions
+4. Compartir link a Melisa: `https://USUARIO.github.io/REPO/`
+
+### Posibles mejoras futuras
+- Conseguir fotos reales de Carretão/SO_Lo/Feira Hippie (hoy solo Maps link)
+- Verificar que las fotos de TripAdvisor sean del venue correcto (a veces mezcla cercanos)
+- Probar envío Formspree end-to-end una vez configurado el endpoint

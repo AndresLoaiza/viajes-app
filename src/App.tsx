@@ -11,6 +11,10 @@ import StickyBar from './components/StickyBar';
 
 const config = rio;
 
+// Token fine-grained con permiso solo "Gists" (read/write). Inyectado en build
+// vía VITE_GIST_TOKEN. Crea un Gist secreto por cada envío en la cuenta del owner.
+const GIST_TOKEN = import.meta.env.VITE_GIST_TOKEN as string | undefined;
+
 type Screen = 'welcome' | 'list' | 'success';
 
 function buildInitialSelections(): SelectionsMap {
@@ -66,11 +70,13 @@ export default function App() {
 
     const selected = config.places.filter((p) => selections[p.id]?.selected);
 
+    const submittedAt = new Date().toISOString();
     const payload = {
-      _subject: `🗺️ Lista de viaje de ${config.travelerName} — ${config.name}`,
+      subject: `🗺️ Lista de viaje de ${config.travelerName} — ${config.name}`,
       traveler: config.travelerName,
       city: config.name,
       total_selected: selected.length,
+      submitted_at: submittedAt,
       message: buildEmailBody(selections),
       selections: selected.map((place) => {
         const sel = selections[place.id];
@@ -87,18 +93,42 @@ export default function App() {
       }),
     };
 
+    if (!GIST_TOKEN) {
+      setError('Falta configurar el destino (VITE_GIST_TOKEN). Avisa a Andrés.');
+      setSubmitting(false);
+      return;
+    }
+
+    // Nombre de archivo legible y único por envío (sin ':' — Gist no lo permite)
+    const stamp = submittedAt.slice(0, 16).replace(/[:T]/g, '-');
+    const fileName = `${config.travelerName}-${config.id}-${stamp}.json`;
+
+    const gistBody = {
+      description: payload.subject,
+      public: false,
+      files: {
+        [fileName]: { content: JSON.stringify(payload, null, 2) },
+        'resumen.md': { content: payload.message },
+      },
+    };
+
     try {
-      const res = await fetch(config.formspreeEndpoint, {
+      const res = await fetch('https://api.github.com/gists', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(payload),
+        headers: {
+          Authorization: `Bearer ${GIST_TOKEN}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        body: JSON.stringify(gistBody),
       });
 
       if (res.ok) {
         setScreen('success');
       } else {
         const data = await res.json().catch(() => ({}));
-        setError((data as { error?: string }).error || 'Error al enviar. Intenta de nuevo.');
+        setError((data as { message?: string }).message || 'Error al enviar. Intenta de nuevo.');
       }
     } catch {
       setError('Sin conexión. Verifica internet e intenta de nuevo.');
@@ -116,13 +146,36 @@ export default function App() {
   }
 
   return (
-    <div style={{ backgroundColor: '#FFFDF5', minHeight: '100vh' }}>
+    <div style={{ backgroundColor: '#FFFDF5', minHeight: '100vh', position: 'relative' }}>
+      {/* Subtle tropical pattern background */}
+      {config.theme.bgPattern && (
+        <div
+          aria-hidden
+          className="fixed inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${config.theme.bgPattern})`,
+            backgroundSize: '320px',
+            backgroundRepeat: 'repeat',
+            opacity: 0.06,
+            zIndex: 0,
+          }}
+        />
+      )}
+
       {/* Header */}
       <header
         className="sticky top-0 z-40 px-4 py-3 flex items-center gap-3 shadow-sm"
         style={{ backgroundColor: '#002776' }}
       >
-        <span className="text-2xl">{config.flag}</span>
+        {config.welcomeBadge ? (
+          <img
+            src={config.welcomeBadge}
+            alt=""
+            className="w-9 h-9 rounded-full object-cover ring-2 ring-white/60 flex-shrink-0"
+          />
+        ) : (
+          <span className="text-2xl">{config.flag}</span>
+        )}
         <div className="flex-1">
           <h1 className="font-display font-bold text-white text-base leading-tight">
             {config.name}
@@ -145,11 +198,20 @@ export default function App() {
       </header>
 
       {/* Content */}
-      <main className="max-w-5xl mx-auto px-4 py-8 pb-28">
+      <main className="relative z-10 max-w-5xl mx-auto px-4 py-8 pb-28">
         {/* Greeting */}
         <div className="mb-8 text-center">
-          <p className="text-2xl font-display font-bold text-gray-800">
-            ¡Hola, {config.travelerName}! {config.flag}
+          <p className="text-2xl font-display font-bold text-gray-800 flex items-center justify-center gap-2">
+            ¡Hola, {config.travelerName}!
+            {config.welcomeBadge ? (
+              <img
+                src={config.welcomeBadge}
+                alt=""
+                className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm"
+              />
+            ) : (
+              config.flag
+            )}
           </p>
           <p className="text-gray-500 text-sm mt-1">
             Marca los lugares que te gustaría visitar y elige qué día

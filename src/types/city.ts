@@ -36,11 +36,13 @@ export interface CityConfig {
   country: string;
   flag: string;
   coverImage: string;
+  heroImage?: string;
+  successImage?: string;
+  welcomeBadge?: string;
   welcomeTitle: string;
   welcomeSubtitle: string;
   travelerName: string;
   senderName: string;
-  formspreeEndpoint: string;
   dates: TravelDate[];
   categories: Category[];
   places: Place[];

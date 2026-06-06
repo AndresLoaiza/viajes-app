@@ -1,5 +1,7 @@
 import type { CityConfig } from '../../types/city';
 
+// Imágenes decorativas (Ideogram) servidas desde /public/decor con el base de Vite
+const asset = (p: string) => `${import.meta.env.BASE_URL}decor/${p}`;
 
 const rio: CityConfig = {
   id: 'rio',
@@ -7,11 +9,13 @@ const rio: CityConfig = {
   country: 'Brasil',
   flag: '🇧🇷',
   coverImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Rio_de_Janeiro_Copacabana-20110505-RM-100139.jpg/960px-Rio_de_Janeiro_Copacabana-20110505-RM-100139.jpg',
+  heroImage: asset('hero.png'),
+  successImage: asset('success.png'),
+  welcomeBadge: asset('welcome-badge.png'),
   welcomeTitle: '¡Hola Melisa! 🌴',
   welcomeSubtitle: '¿Lista para el viaje? Escoge los lugares que quieres visitar en Río de Janeiro',
   travelerName: 'Melisa',
   senderName: 'Andrés',
-  formspreeEndpoint: 'https://formspree.io/f/REEMPLAZA_CON_TU_ID',
   dates: [
     { id: 'thu-25', label: 'Jueves 25 jun', shortLabel: 'Jue 25' },
     { id: 'fri-26', label: 'Viernes 26 jun', shortLabel: 'Vie 26' },
@@ -178,19 +182,6 @@ const rio: CityConfig = {
       category: 'cultura',
     },
     {
-      id: 'sambodromo',
-      name: 'Sambódromo',
-      description: 'El escenario del Carnaval más famoso del mundo. Aunque no sea temporada, vale la visita.',
-      images: [
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Sambodromo_Marqu%C3%AAs_de_Sapuca%C3%AD_1985_%2853-16A%29.jpg/960px-Sambodromo_Marqu%C3%AAs_de_Sapuca%C3%AD_1985_%2853-16A%29.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Sambodromo_Marqu%C3%AAs_de_Sapuca%C3%AD_1985_%2851-4A%29.jpg/960px-Sambodromo_Marqu%C3%AAs_de_Sapuca%C3%AD_1985_%2851-4A%29.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Sambodromo_Marqu%C3%AAs_de_Sapuca%C3%AD_1985_%2853-0A%29.jpg/960px-Sambodromo_Marqu%C3%AAs_de_Sapuca%C3%AD_1985_%2853-0A%29.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Sambodromo_Marqu%C3%AAs_de_Sapuca%C3%AD_1985_%2850-28%29.jpg/960px-Sambodromo_Marqu%C3%AAs_de_Sapuca%C3%AD_1985_%2850-28%29.jpg',
-      ],
-      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Samb%C3%B3dromo%20Marqu%C3%AAs%20de%20Sapuca%C3%AD%2C%20Rio%20de%20Janeiro',
-      category: 'cultura',
-    },
-    {
       id: 'santa-teresa',
       name: 'Barrio Santa Teresa',
       description: 'El barrio bohemio de Río. Calles empedradas, arte callejero, bares y restaurantes únicos.',
@@ -236,10 +227,9 @@ const rio: CityConfig = {
       name: 'Amanecer en Paddle Surf',
       description: 'Salir al mar en tabla de SUP antes de que salga el sol. Con @surfrio o @modoverticaltour.',
       images: [
-        'https://upload.wikimedia.org/wikipedia/commons/c/ce/20190717_Paddleboarding.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/PMNM_Paddle_Boarders_%2849946568537%29.jpg/960px-PMNM_Paddle_Boarders_%2849946568537%29.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Surfer_Vs_Paddleboarder_in_Embarcadero_morro_bay_CA_93442.png/960px-Surfer_Vs_Paddleboarder_in_Embarcadero_morro_bay_CA_93442.png',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/-TravelTuesday_with_My_Public_Lands_-_25473077411.jpg/960px--TravelTuesday_with_My_Public_Lands_-_25473077411.jpg',
+        `${import.meta.env.BASE_URL}paddle/sup1.png`,
+        `${import.meta.env.BASE_URL}paddle/sup2.png`,
+        `${import.meta.env.BASE_URL}paddle/sup3.png`,
       ],
       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Praia%20de%20Copacabana%20Posto%206%2C%20Rio%20de%20Janeiro',
       category: 'experiencias',
@@ -283,24 +273,12 @@ const rio: CityConfig = {
       category: 'gastronomia',
     },
     {
-      id: 'sanduche-paraicopa',
-      name: 'Sanduíche Bar Paraíso',
-      description: 'El sanduche carioca más famoso. Cola siempre, pero vale cada minuto.',
-      images: [
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Bauru_portugu%C3%AAs.jpg/960px-Bauru_portugu%C3%AAs.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Sandu%C3%ADche_Bauru.jpg/960px-Sandu%C3%ADche_Bauru.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lanche_Bauru.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Bauru_%28November_2024%29_051.jpg/960px-Bauru_%28November_2024%29_051.jpg',
-      ],
-      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Parada%20de%20Copa%2C%20Rua%20Barata%20Ribeiro%20450%2C%20Copacabana%2C%20Rio%20de%20Janeiro',
-      category: 'gastronomia',
-    },
-    {
       id: 'garota-ipanema',
       name: 'Bar Garota de Ipanema',
       description: 'El bar donde Tom Jobim compuso "La chica de Ipanema". Musica ao vivo y caipirinha legendaria.',
       images: [
         'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Sign_of_Bar_Garota_de_Ipanema_-_Ipanema_-_Rio_de_Janeiro_-_Brazil_%2817370446502%29.jpg/960px-Sign_of_Bar_Garota_de_Ipanema_-_Ipanema_-_Rio_de_Janeiro_-_Brazil_%2817370446502%29.jpg',
+        'https://media-cdn.tripadvisor.com/media/photo-s/03/22/16/f9/garota-de-ipanema.jpg',
       ],
       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Garota%20de%20Ipanema%2C%20Rua%20Vin%C3%ADcius%20de%20Moraes%2049%2C%20Ipanema%2C%20Rio%20de%20Janeiro',
       category: 'gastronomia',
@@ -310,6 +288,7 @@ const rio: CityConfig = {
       name: 'Carretão (Carnes)',
       description: 'Churrascaria brasileña por kilo. La mejor carne asada de la ciudad.',
       images: [
+        `${import.meta.env.BASE_URL}lugares/carretao.png`,
       ],
       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Carret%C3%A3o%20Ipanema%2C%20Rua%20Visconde%20de%20Piraj%C3%A1%20112%2C%20Rio%20de%20Janeiro',
       category: 'gastronomia',
@@ -319,6 +298,7 @@ const rio: CityConfig = {
       name: 'So Lo Café',
       description: 'Café de especialidad en un rincón con onda en Río.',
       images: [
+        'https://images.adsttc.com/media/images/68af/0f85/7b16/8100/0138/25f6/newsletter/Est_dio_Ch_o__Fevereiro_2025___Renato_Mangolin_015.jpg?1756303331',
       ],
       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=SO_Lo%20Caf%C3%A9%2C%20Rua%20Garcia%20d%27%C3%81vila%20147%2C%20Ipanema%2C%20Rio%20de%20Janeiro',
       category: 'gastronomia',
@@ -328,21 +308,11 @@ const rio: CityConfig = {
       name: 'Padaria Ipanema',
       description: 'La panadería de barrio más querida de Ipanema. Pão de queijo y café da manhã perfectos.',
       images: [
-        'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/04/46/0d/39/outside-facade.jpg?w=900&h=500&s=1',
-        'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/0d/d9/8f/c8/padaria-e-confeitaria.jpg?w=900&h=500&s=1',
-        'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/32/e8/b2/2e/caption.jpg?w=900&h=600&s=1',
+        'https://lh3.googleusercontent.com/gps-cs-s/APNQkAFNUDiQyv7paiBPQoi0ZxNTwhHhDdwwK6FBoPLYUAdxJd8_Ue5NW71u1gFXJzOglS1mexuHYHw-7malIasRPdKI5rxfLUT695rENR8hlffxsdTLEEggKfGomfhhO5D8tI7Jw54mJqwYUjQb=s680-w680-h510-rw',
+        'https://lh3.googleusercontent.com/gps-cs-s/APNQkAHNKDHKClK5PngB1jOmiS2UWAn8q6alntdUO6pVUltcgqrkH7n76-oQk3Ubv_l3nkH5Zk-mNbpev46eN0-VL-skjrpWOEPc8zsbhhdtt3b8BouRMFUpxUmp9FOLZzyH-gIaZz30xUl_vZA=s680-w680-h510-rw',
+        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsb8mHo-B5sJe-NTmAgdXOINm4eEticqCGew&s',
       ],
       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Padaria%20Ipanema%2C%20Rua%20Visconde%20de%20Piraj%C3%A1%20325%2C%20Rio%20de%20Janeiro',
-      category: 'gastronomia',
-    },
-    {
-      id: 'fala',
-      name: 'Fala',
-      description: 'Restaurante moderno con cocina brasileña contemporánea.',
-      images: [
-        'https://media.timeout.com/images/106096813/750/422/image.jpg',
-      ],
-      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Fala%20Bar%2C%20Rua%20Oliveira%20Fausto%2029%2C%20Botafogo%2C%20Rio%20de%20Janeiro',
       category: 'gastronomia',
     },
     {
@@ -350,6 +320,7 @@ const rio: CityConfig = {
       name: 'Feria Nocturna de Copacabana',
       description: 'Mercado nocturno en la orla de Copacabana. Artesanías, comida y música carioca.',
       images: [
+        'https://static.wixstatic.com/media/d868ba_d92b5b889a7f49f4ab07430ce0c23923~mv2.jpg/v1/fill/w_568,h_378,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/d868ba_d92b5b889a7f49f4ab07430ce0c23923~mv2.jpg',
       ],
       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Feira%20Hippie%20de%20Ipanema%2C%20Pra%C3%A7a%20General%20Os%C3%B3rio%2C%20Rio%20de%20Janeiro',
       category: 'gastronomia',
@@ -385,6 +356,7 @@ const rio: CityConfig = {
     primaryColor: '#009C3B',
     secondaryColor: '#FFDF00',
     accentColor: '#002776',
+    bgPattern: asset('pattern.png'),
   },
 };
 

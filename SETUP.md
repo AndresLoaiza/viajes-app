@@ -1,62 +1,66 @@
 # Setup — Consulta Viajes
 
+Los envíos de Melisa se guardan como **Gist secreto** en la cuenta de GitHub de Andrés
+(antes era Formspree). Cada envío = un Gist nuevo con el JSON + un `resumen.md`.
+
 ## Pasos para publicar
 
-### 1. Crear repositorio en GitHub
-```
-Nombre sugerido: viajes-melisa
-Visibilidad: Public (necesario para GitHub Pages gratis)
-```
+### 1. Crear token fine-grained (permiso solo Gists)
+1. Ve a https://github.com/settings/personal-access-tokens/new
+2. **Token name:** `viajes-app`
+3. **Expiration:** la que quieras (ej. 90 días o custom)
+4. **Repository access:** Public Repositories (read-only) — no se usa, da igual
+5. **Permissions → Account permissions → Gists:** `Read and write`
+6. Generate token → copia el valor (empieza con `github_pat_...`)
 
-### 2. Registrar Formspree (envío de email)
-1. Ve a [formspree.io](https://formspree.io)
-2. Crea cuenta con **andres.9438@gmail.com**
-3. "New Form" → ponle nombre "Consulta Viajes Melisa"
-4. Copia el endpoint: `https://formspree.io/f/XXXXXXXX`
-5. Abre `src/data/cities/rio.ts`
-6. Reemplaza `REEMPLAZA_CON_TU_ID` con tu ID real:
-   ```ts
-   formspreeEndpoint: 'https://formspree.io/f/XXXXXXXX',
-   ```
+El token se usa en 2 lugares:
+- **Local** (`.env`): `VITE_GIST_TOKEN=github_pat_...`
+- **GitHub Actions** (secret del repo): `GIST_TOKEN` (ver paso 3)
 
-### 3. Actualizar base URL en vite.config.ts
-Cambia `'/viajes-app/'` por el nombre de tu repo:
-```ts
-base: '/viajes-melisa/',   // ← nombre del repo en GitHub
-```
+> El token queda embebido en el JS público del sitio. Solo tiene permiso de Gists,
+> así que el peor caso es spam de gists — revocable al instante en la misma página.
 
-### 4. Subir a GitHub
+### 2. Subir a GitHub (repo `viajes-app`)
+Ya configurado vía `gh` por Claude. Manual sería:
 ```bash
 cd viajes-app
-git init
+git init -b main
 git add .
 git commit -m "Initial commit"
-git remote add origin https://github.com/TU_USUARIO/viajes-melisa.git
-git push -u origin main
+gh repo create viajes-app --public --source=. --push
 ```
 
-### 5. Activar GitHub Pages
-1. En tu repo → Settings → Pages
-2. Source: **GitHub Actions** (no "Deploy from a branch")
-3. El workflow `.github/workflows/deploy.yml` se ejecuta automáticamente
+### 3. Guardar el token como secret del repo
+```bash
+gh secret set GIST_TOKEN --body "github_pat_..."
+```
 
-### 6. Obtener el link para Melisa
+### 4. Activar GitHub Pages
+1. Repo → Settings → Pages
+2. Source: **GitHub Actions**
+3. El workflow `.github/workflows/deploy.yml` corre solo en cada push a `main`
+
+### 5. Link para Melisa
 ```
-https://TU_USUARIO.github.io/viajes-melisa/
+https://AndresLoaiza.github.io/viajes-app/
 ```
+
+### 6. Ver los envíos
+Cada envío aparece en https://gist.github.com/AndresLoaiza (gists secretos).
 
 ---
 
 ## Para usar con otra ciudad
-
 1. Copia `src/data/cities/rio.ts` → `src/data/cities/paris.ts`
-2. Edita todos los campos (lugares, fechas, tema de colores)
-3. En `App.tsx` cambia `import rio from './data/cities/rio'` por la nueva ciudad
+2. Edita campos (lugares, fechas, tema)
+3. En `App.tsx` cambia `import rio from './data/cities/rio'`
+4. Cambia `base` en `vite.config.ts` si el repo cambia de nombre
 
 ---
 
 ## Dev local
 ```bash
 npm install
-npm run dev   # → http://localhost:5173
+cp .env.example .env   # y pega tu VITE_GIST_TOKEN
+npm run dev            # → http://localhost:5173/viajes-app/
 ```
