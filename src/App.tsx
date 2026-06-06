@@ -242,6 +242,16 @@ export default function App() {
         )}
       </main>
 
+      {/* Osito acompañante mientras escoge */}
+      {config.mascot && (
+        <img
+          src={config.mascot}
+          alt=""
+          aria-hidden
+          className="bear-peek fixed bottom-24 right-1 sm:right-3 z-30 w-16 sm:w-20 pointer-events-none drop-shadow-lg select-none"
+        />
+      )}
+
       <StickyBar
         config={config}
         selections={selections}

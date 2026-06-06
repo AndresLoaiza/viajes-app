@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Place, TravelDate, PlaceSelection } from '../types/city';
 
 interface Props {
@@ -13,6 +13,11 @@ export default function PlaceCard({ place, dates, selection, categoryColor, onCh
   const [idx, setIdx] = useState(0);
   const [broken, setBroken] = useState<Record<number, boolean>>({});
   const [notesOpen, setNotesOpen] = useState(false);
+
+  // Swipe táctil (móvil)
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const swipedRef = useRef(false);
 
   // Only images that haven't errored
   const liveImages = place.images.filter((_, i) => !broken[i]);
@@ -29,8 +34,7 @@ export default function PlaceCard({ place, dates, selection, categoryColor, onCh
     });
   };
 
-  const go = (e: React.MouseEvent, dir: number) => {
-    e.stopPropagation();
+  const step = (dir: number) => {
     setIdx((i) => {
       const n = place.images.length;
       let next = (i + dir + n) % n;
@@ -39,6 +43,39 @@ export default function PlaceCard({ place, dates, selection, categoryColor, onCh
       while (broken[next] && guard < n) { next = (next + dir + n) % n; guard++; }
       return next;
     });
+  };
+
+  const go = (e: React.MouseEvent, dir: number) => {
+    e.stopPropagation();
+    step(dir);
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartX.current = t.clientX;
+    touchStartY.current = t.clientY;
+    swipedRef.current = false;
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (liveImages.length < 2) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX.current;
+    const dy = t.clientY - touchStartY.current;
+    // swipe horizontal claro (umbral 40px, más horizontal que vertical)
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      swipedRef.current = true; // evita que el swipe seleccione la card
+      step(dx < 0 ? 1 : -1);    // izquierda → siguiente, derecha → anterior
+    }
+  };
+
+  // Tap selecciona; swipe NO
+  const onImageClick = () => {
+    if (swipedRef.current) {
+      swipedRef.current = false;
+      return;
+    }
+    toggle();
   };
 
   const fallbackStyle = {
@@ -56,9 +93,11 @@ export default function PlaceCard({ place, dates, selection, categoryColor, onCh
     >
       {/* Image / carousel */}
       <div
-        className="relative h-44 overflow-hidden group"
-        onClick={toggle}
-        style={!hasImages ? fallbackStyle : undefined}
+        className="relative h-44 overflow-hidden group select-none"
+        onClick={onImageClick}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        style={{ touchAction: 'pan-y', ...(!hasImages ? fallbackStyle : {}) }}
       >
         {hasImages ? (
           <>

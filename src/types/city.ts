@@ -39,6 +39,7 @@ export interface CityConfig {
   heroImage?: string;
   successImage?: string;
   welcomeBadge?: string;
+  mascot?: string;
   welcomeTitle: string;
   welcomeSubtitle: string;
   travelerName: string;

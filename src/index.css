@@ -34,3 +34,34 @@ body {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #F5E6C8; }
 ::-webkit-scrollbar-thumb { background: #009C3B; border-radius: 3px; }
+
+/* Oso mascota: entra desde abajo y saluda */
+@keyframes bear-enter {
+  0%   { transform: translateY(40px) scale(0.85); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes bear-wave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  70% { transform: rotate(-7deg); }
+  80% { transform: rotate(7deg); }
+  90% { transform: rotate(-5deg); }
+}
+.bear-greeter {
+  animation: bear-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bear-greeter > img {
+  transform-origin: 70% 90%;
+  animation: bear-wave 2.6s ease-in-out 0.7s infinite;
+}
+@keyframes bear-peek-in {
+  0%   { transform: translateX(60px) rotate(8deg); opacity: 0; }
+  100% { transform: translateX(0) rotate(0deg); opacity: 1; }
+}
+.bear-peek {
+  transform-origin: 70% 90%;
+  animation: bear-peek-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both,
+             bear-wave 3.2s ease-in-out 1.2s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bear-greeter, .bear-greeter > img, .bear-peek { animation: none; }
+}

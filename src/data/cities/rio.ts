@@ -12,6 +12,7 @@ const rio: CityConfig = {
   heroImage: asset('hero.png'),
   successImage: asset('success.png'),
   welcomeBadge: asset('welcome-badge.png'),
+  mascot: asset('bear.png'),
   welcomeTitle: '¡Hola Melisa! 🌴',
   welcomeSubtitle: '¿Lista para el viaje? Escoge los lugares que quieres visitar en Río de Janeiro',
   travelerName: 'Melisa',

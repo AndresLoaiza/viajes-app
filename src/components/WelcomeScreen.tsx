@@ -93,6 +93,13 @@ export default function WelcomeScreen({ config, onStart }: Props) {
         </p>
       </div>
 
+      {/* Oso mascota que saluda */}
+      {config.mascot && (
+        <div className="bear-greeter absolute bottom-6 right-2 sm:right-6 z-20 w-28 sm:w-36 pointer-events-none drop-shadow-xl">
+          <img src={config.mascot} alt="Osito de bienvenida saludando" className="w-full h-auto" />
+        </div>
+      )}
+
       {/* Wave bottom */}
       <div className="absolute bottom-0 left-0 right-0">
         <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg">
