@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-brasil-green: #009C3B;
+  --color-brasil-yellow: #FFDF00;
+  --color-brasil-blue: #002776;
+  --color-sand: #F5E6C8;
+  --color-sand-dark: #E8D5A3;
+  --color-warm-white: #FFFDF5;
+  --color-ocean: #1B6CA8;
+  --color-ocean-light: #4A9ED6;
+  --font-display: 'Baloo 2', cursive, sans-serif;
+  --font-body: 'Nunito', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-color: #FFFDF5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #F5E6C8; }
+::-webkit-scrollbar-thumb { background: #009C3B; border-radius: 3px; }
