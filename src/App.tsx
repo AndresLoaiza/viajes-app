@@ -1,12 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import './index.css';
 
-import type { CityConfig, SelectionsMap, PlaceSelection } from './types/city';
+import type { CityConfig, SelectionsMap } from './types/city';
 import { cities, defaultCityId } from './data/cities';
 
 import CityPicker from './components/CityPicker';
 import WelcomeScreen from './components/WelcomeScreen';
-import CategorySection from './components/CategorySection';
+import CategoryGrid from './components/CategoryGrid';
+import SwipeDeck from './components/SwipeDeck';
 import SuccessScreen from './components/SuccessScreen';
 import StickyBar from './components/StickyBar';
 
@@ -14,8 +15,8 @@ import StickyBar from './components/StickyBar';
 // vía VITE_GIST_TOKEN. Crea un Gist secreto por cada envío en la cuenta del owner.
 const GIST_TOKEN = import.meta.env.VITE_GIST_TOKEN as string | undefined;
 
-// Si hay más de una ciudad, arrancamos en el selector; si solo hay una, vamos directo.
-type Screen = 'picker' | 'welcome' | 'list' | 'success';
+// Flujo: selector ciudad → welcome → categorías → deck (swipe) → success.
+type Screen = 'picker' | 'welcome' | 'categories' | 'deck' | 'success';
 
 function buildInitialSelections(config: CityConfig): SelectionsMap {
   const map: SelectionsMap = {};
@@ -73,19 +74,31 @@ export default function App() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-
-  const handleSelectionChange = useCallback((placeId: string, updated: PlaceSelection) => {
-    setSelectionsByCity((prev) => ({
-      ...prev,
-      [cityId]: { ...prev[cityId], [placeId]: updated },
-    }));
-  }, [cityId]);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const handlePickCity = (id: string) => {
     setCityId(id);
     setError('');
     setScreen('welcome');
   };
+
+  const handlePickCategory = (catId: string) => {
+    setActiveCategory(catId);
+    setScreen('deck');
+  };
+
+  const handleDecide = useCallback((placeId: string, selected: boolean) => {
+    setSelectionsByCity((prev) => ({
+      ...prev,
+      [cityId]: {
+        ...prev[cityId],
+        [placeId]: { ...prev[cityId][placeId], selected },
+      },
+    }));
+  }, [cityId]);
+
+  const activeCategoryConfig = config.categories.find((c) => c.id === activeCategory);
+  const activeCategoryPlaces = config.places.filter((p) => p.category === activeCategory);
 
   const selectedCount = config.places.filter((p) => selections[p.id]?.selected).length;
 
@@ -171,8 +184,20 @@ export default function App() {
     return (
       <WelcomeScreen
         config={config}
-        onStart={() => setScreen('list')}
+        onStart={() => setScreen('categories')}
         onBack={multiCity ? () => setScreen('picker') : undefined}
+      />
+    );
+  }
+
+  if (screen === 'deck' && activeCategoryConfig) {
+    return (
+      <SwipeDeck
+        category={activeCategoryConfig}
+        places={activeCategoryPlaces}
+        selections={selections}
+        onDecide={handleDecide}
+        onClose={() => setScreen('categories')}
       />
     );
   }
@@ -260,27 +285,16 @@ export default function App() {
             )}
           </p>
           <p className="text-gray-500 text-sm mt-1">
-            {config.dates.length > 0
-              ? 'Marca los lugares que te gustaría visitar y elige qué día'
-              : 'Marca los lugares que te gustaría visitar'}
+            Elige una categoría y desliza los lugares que te gustan
           </p>
         </div>
 
-        {/* Categories */}
-        {config.categories.map((cat) => {
-          const catPlaces = config.places.filter((p) => p.category === cat.id);
-          if (!catPlaces.length) return null;
-          return (
-            <CategorySection
-              key={cat.id}
-              category={cat}
-              places={catPlaces}
-              dates={config.dates}
-              selections={selections}
-              onSelectionChange={handleSelectionChange}
-            />
-          );
-        })}
+        {/* Categorías → cada una abre el deck de swipe */}
+        <CategoryGrid
+          config={config}
+          selections={selections}
+          onPick={handlePickCategory}
+        />
 
         {error && (
           <div className="mt-4 p-4 rounded-xl text-sm font-medium text-center"
