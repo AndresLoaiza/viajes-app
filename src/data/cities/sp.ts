@@ -13,7 +13,7 @@ const sp: CityConfig = {
   successImage: asset('success.png'),
   welcomeBadge: asset('welcome-badge.png'),
   mascot: asset('mascot.png'),
-  welcomeTitle: '¡Hola Melisa! 🏙️',
+  welcomeTitle: '¡Hola Melisa! ❤️',
   welcomeSubtitle: '¿Lista para São Paulo? Escoge los lugares que quieres conocer en la ciudad.',
   travelerName: 'Melisa',
   senderName: 'Andrés',
