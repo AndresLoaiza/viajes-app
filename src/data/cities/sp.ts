@@ -122,20 +122,6 @@ const sp: CityConfig = {
       tip: 'Queda en Santos (~1h de SP, cerca de la playa).',
     },
     {
-      id: 'ricardo-brennand',
-      name: 'Instituto Ricardo Brennand',
-      description: 'Un castillo neogótico rodeado de jardines con una de las mayores colecciones de armas y arte del mundo.',
-      images: [
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Instituto_Ricardo_Brennand_castle_%28420558412%29.jpg/960px-Instituto_Ricardo_Brennand_castle_%28420558412%29.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Instituto_Ricardo_Brennand_01.jpg/960px-Instituto_Ricardo_Brennand_01.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Museu_de_cera_no_Instituto_Ricardo_Brennand%2C_Recife%2C_Brasil.jpg/960px-Museu_de_cera_no_Instituto_Ricardo_Brennand%2C_Recife%2C_Brasil.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/A_arte_de_Ricardo_Brennand._%287558324204%29.jpg/960px-A_arte_de_Ricardo_Brennand._%287558324204%29.jpg',
-      ],
-      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Instituto%20Ricardo%20Brennand%2C%20Recife',
-      category: 'museos',
-      tip: 'Queda en Recife — solo si el viaje pasa por allá.',
-    },
-    {
       id: 'ims-paulista',
       name: 'IMS Paulista (Instituto Moreira Salles)',
       description: 'Centro cultural moderno en la Paulista: fotografía, cine, música y un café con vista. Entrada gratis.',
@@ -226,6 +212,7 @@ const sp: CityConfig = {
       ],
       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Templo%20Zu%20Lai%2C%20Cotia',
       category: 'cultura',
+      tip: 'Queda retirado (en Cotia, afuera de SP).',
     },
     {
       id: 'biblioteca-mario',

@@ -5,5 +5,6 @@ import sp from './sp';
 // Registro de ciudades. Para agregar otra: crea su archivo y añádelo aquí.
 export const cities: CityConfig[] = [rio, sp];
 
-// Ciudad por defecto cuando solo hay una (si hay varias, App muestra el selector).
-export const defaultCityId = cities[0].id;
+// Ciudad por defecto (preseleccionada). Con varias ciudades App muestra el selector,
+// pero São Paulo queda como ciudad inicial/por defecto.
+export const defaultCityId = 'sp';
