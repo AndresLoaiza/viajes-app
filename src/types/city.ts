@@ -5,6 +5,14 @@ export interface TravelDate {
   note?: string;
 }
 
+// Obra/elemento representativo de un museo o lugar cultural
+export interface Highlight {
+  name: string;       // nombre de la obra o elemento
+  author?: string;    // artista / autor / arquitecto (si aplica)
+  note?: string;      // por qué es representativo / qué es
+  image?: string;     // foto (Wikimedia). Si falta, la card va en modo texto
+}
+
 export interface Place {
   id: string;
   name: string;
@@ -14,6 +22,8 @@ export interface Place {
   category: string;
   tip?: string;
   bookingUrl?: string;
+  highlights?: Highlight[];   // obras/elementos destacados (botón → modal)
+  highlightsLabel?: string;   // texto del botón (ej "Ver obras", "Lo más representativo")
 }
 
 export interface Category {

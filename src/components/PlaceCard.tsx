@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Place, TravelDate, PlaceSelection } from '../types/city';
+import HighlightsModal from './HighlightsModal';
 
 interface Props {
   place: Place;
@@ -13,6 +14,8 @@ export default function PlaceCard({ place, dates, selection, categoryColor, onCh
   const [idx, setIdx] = useState(0);
   const [broken, setBroken] = useState<Record<number, boolean>>({});
   const [notesOpen, setNotesOpen] = useState(false);
+  const [highlightsOpen, setHighlightsOpen] = useState(false);
+  const hasHighlights = !!place.highlights?.length;
 
   // Swipe táctil (móvil)
   const touchStartX = useRef(0);
@@ -189,6 +192,18 @@ export default function PlaceCard({ place, dates, selection, categoryColor, onCh
           </p>
         )}
 
+        {hasHighlights && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setHighlightsOpen(true); }}
+            className="mt-3 w-full text-sm font-semibold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            style={{ backgroundColor: `${categoryColor}15`, color: categoryColor }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = `${categoryColor}28`)}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = `${categoryColor}15`)}
+          >
+            🎨 {place.highlightsLabel ?? 'Ver obras destacadas'}
+          </button>
+        )}
+
         <div className="mt-2 flex flex-wrap gap-3">
           {place.bookingUrl && (
             <a href={place.bookingUrl} target="_blank" rel="noopener noreferrer"
@@ -256,6 +271,15 @@ export default function PlaceCard({ place, dates, selection, categoryColor, onCh
             />
           )}
         </div>
+      )}
+
+      {highlightsOpen && place.highlights && (
+        <HighlightsModal
+          title={place.name}
+          highlights={place.highlights}
+          accentColor={categoryColor}
+          onClose={() => setHighlightsOpen(false)}
+        />
       )}
     </div>
   );

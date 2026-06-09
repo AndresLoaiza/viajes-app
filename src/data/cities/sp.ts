@@ -1,4 +1,5 @@
 import type { CityConfig } from '../../types/city';
+import { spHighlights } from './sp-highlights';
 
 // Imágenes decorativas (Ideogram) de São Paulo en /public/decor/sp
 const asset = (p: string) => `${import.meta.env.BASE_URL}decor/sp/${p}`;
@@ -392,5 +393,14 @@ const sp: CityConfig = {
     bgPattern: asset('pattern.png'),
   },
 };
+
+// Adjunta obras/elementos destacados a museos y lugares culturales.
+sp.places.forEach((p) => {
+  const h = spHighlights[p.id];
+  if (h?.length) {
+    p.highlights = h;
+    p.highlightsLabel = p.category === 'museos' ? 'Ver obras destacadas' : 'Lo más representativo';
+  }
+});
 
 export default sp;
