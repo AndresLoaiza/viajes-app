@@ -211,25 +211,29 @@ export default function PlaceCard({ place, dates, selection, categoryColor, onCh
       {selection.selected && (
         <div className="px-4 pb-4 border-t pt-3" style={{ borderColor: `${categoryColor}30` }}
           onClick={(e) => e.stopPropagation()}>
-          <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-            ¿Qué día te gustaría?
-          </p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {dates.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => toggleDate(d.id)}
-                className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all duration-150 cursor-pointer"
-                style={
-                  selection.preferredDates.includes(d.id)
-                    ? { backgroundColor: categoryColor, color: 'white' }
-                    : { backgroundColor: `${categoryColor}15`, color: categoryColor }
-                }
-              >
-                {d.shortLabel}{d.note && <span className="ml-1 opacity-70">*</span>}
-              </button>
-            ))}
-          </div>
+          {dates.length > 0 && (
+            <>
+              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+                ¿Qué día te gustaría?
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {dates.map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => toggleDate(d.id)}
+                    className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all duration-150 cursor-pointer"
+                    style={
+                      selection.preferredDates.includes(d.id)
+                        ? { backgroundColor: categoryColor, color: 'white' }
+                        : { backgroundColor: `${categoryColor}15`, color: categoryColor }
+                    }
+                  >
+                    {d.shortLabel}{d.note && <span className="ml-1 opacity-70">*</span>}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <button
             onClick={() => setNotesOpen(!notesOpen)}

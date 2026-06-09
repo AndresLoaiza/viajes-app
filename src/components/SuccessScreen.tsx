@@ -97,7 +97,7 @@ export default function SuccessScreen({ config, selections }: Props) {
             className="w-7 h-7 rounded-full object-cover ring-2 ring-white shadow-sm"
           />
         )}
-        ¡Hasta Río! 🌴
+        ¡Hasta {config.name}! 🌴
       </p>
     </div>
   );

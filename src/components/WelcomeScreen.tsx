@@ -3,14 +3,23 @@ import type { CityConfig } from '../types/city';
 interface Props {
   config: CityConfig;
   onStart: () => void;
+  onBack?: () => void;
 }
 
-export default function WelcomeScreen({ config, onStart }: Props) {
+export default function WelcomeScreen({ config, onStart, onBack }: Props) {
   return (
     <div
       className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
       style={{ backgroundColor: '#002776' }}
     >
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-4 left-4 z-20 text-white/80 hover:text-white text-sm font-semibold flex items-center gap-1 cursor-pointer"
+        >
+          ‹ Otras ciudades
+        </button>
+      )}
       {/* Background image with overlay */}
       <div
         className="absolute inset-0 bg-cover bg-center"
@@ -60,19 +69,21 @@ export default function WelcomeScreen({ config, onStart }: Props) {
           De: <span className="text-white/80 font-semibold">{config.senderName}</span> con mucho amor ✈️
         </p>
 
-        {/* Dates preview */}
-        <div className="flex flex-wrap gap-2 justify-center mb-10">
-          {config.dates.map((d) => (
-            <span
-              key={d.id}
-              className="px-3 py-1 rounded-full text-sm font-semibold"
-              style={{ backgroundColor: '#FFDF00', color: '#002776' }}
-            >
-              {d.shortLabel}
-              {d.note && <span className="ml-1 opacity-70">({d.note})</span>}
-            </span>
-          ))}
-        </div>
+        {/* Dates preview (solo si la ciudad tiene fechas) */}
+        {config.dates.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-center mb-10">
+            {config.dates.map((d) => (
+              <span
+                key={d.id}
+                className="px-3 py-1 rounded-full text-sm font-semibold"
+                style={{ backgroundColor: '#FFDF00', color: '#002776' }}
+              >
+                {d.shortLabel}
+                {d.note && <span className="ml-1 opacity-70">({d.note})</span>}
+              </span>
+            ))}
+          </div>
+        )}
 
         <button
           onClick={onStart}

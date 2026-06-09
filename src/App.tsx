@@ -1,23 +1,23 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import './index.css';
 
-import type { SelectionsMap, PlaceSelection } from './types/city';
-import rio from './data/cities/rio';
+import type { CityConfig, SelectionsMap, PlaceSelection } from './types/city';
+import { cities, defaultCityId } from './data/cities';
 
+import CityPicker from './components/CityPicker';
 import WelcomeScreen from './components/WelcomeScreen';
 import CategorySection from './components/CategorySection';
 import SuccessScreen from './components/SuccessScreen';
 import StickyBar from './components/StickyBar';
 
-const config = rio;
-
 // Token fine-grained con permiso solo "Gists" (read/write). Inyectado en build
 // vía VITE_GIST_TOKEN. Crea un Gist secreto por cada envío en la cuenta del owner.
 const GIST_TOKEN = import.meta.env.VITE_GIST_TOKEN as string | undefined;
 
-type Screen = 'welcome' | 'list' | 'success';
+// Si hay más de una ciudad, arrancamos en el selector; si solo hay una, vamos directo.
+type Screen = 'picker' | 'welcome' | 'list' | 'success';
 
-function buildInitialSelections(): SelectionsMap {
+function buildInitialSelections(config: CityConfig): SelectionsMap {
   const map: SelectionsMap = {};
   config.places.forEach((p) => {
     map[p.id] = { placeId: p.id, selected: false, preferredDates: [], notes: '' };
@@ -25,7 +25,7 @@ function buildInitialSelections(): SelectionsMap {
   return map;
 }
 
-function buildEmailBody(selections: SelectionsMap): string {
+function buildEmailBody(config: CityConfig, selections: SelectionsMap): string {
   const selected = config.places.filter((p) => selections[p.id]?.selected);
   if (!selected.length) return 'Sin selecciones.';
 
@@ -52,14 +52,38 @@ function buildEmailBody(selections: SelectionsMap): string {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('welcome');
-  const [selections, setSelections] = useState<SelectionsMap>(buildInitialSelections);
+  const multiCity = cities.length > 1;
+  const [cityId, setCityId] = useState<string>(defaultCityId);
+  const [screen, setScreen] = useState<Screen>(multiCity ? 'picker' : 'welcome');
+
+  const config = useMemo(
+    () => cities.find((c) => c.id === cityId) ?? cities[0],
+    [cityId],
+  );
+
+  // Selecciones independientes por ciudad
+  const [selectionsByCity, setSelectionsByCity] = useState<Record<string, SelectionsMap>>(() => {
+    const init: Record<string, SelectionsMap> = {};
+    cities.forEach((c) => { init[c.id] = buildInitialSelections(c); });
+    return init;
+  });
+  const selections = selectionsByCity[cityId];
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const handleSelectionChange = useCallback((placeId: string, updated: PlaceSelection) => {
-    setSelections((prev) => ({ ...prev, [placeId]: updated }));
-  }, []);
+    setSelectionsByCity((prev) => ({
+      ...prev,
+      [cityId]: { ...prev[cityId], [placeId]: updated },
+    }));
+  }, [cityId]);
+
+  const handlePickCity = (id: string) => {
+    setCityId(id);
+    setError('');
+    setScreen('welcome');
+  };
 
   const selectedCount = config.places.filter((p) => selections[p.id]?.selected).length;
 
@@ -77,7 +101,7 @@ export default function App() {
       city: config.name,
       total_selected: selected.length,
       submitted_at: submittedAt,
-      message: buildEmailBody(selections),
+      message: buildEmailBody(config, selections),
       selections: selected.map((place) => {
         const sel = selections[place.id];
         const cat = config.categories.find((c) => c.id === place.category);
@@ -137,8 +161,18 @@ export default function App() {
     }
   };
 
+  if (screen === 'picker') {
+    return <CityPicker cities={cities} onPick={handlePickCity} />;
+  }
+
   if (screen === 'welcome') {
-    return <WelcomeScreen config={config} onStart={() => setScreen('list')} />;
+    return (
+      <WelcomeScreen
+        config={config}
+        onStart={() => setScreen('list')}
+        onBack={multiCity ? () => setScreen('picker') : undefined}
+      />
+    );
   }
 
   if (screen === 'success') {
@@ -167,6 +201,14 @@ export default function App() {
         className="sticky top-0 z-40 px-4 py-3 flex items-center gap-3 shadow-sm"
         style={{ backgroundColor: '#002776' }}
       >
+        {multiCity && (
+          <button
+            onClick={() => setScreen('picker')}
+            className="text-white/80 hover:text-white text-lg flex-shrink-0 cursor-pointer"
+            aria-label="Cambiar ciudad"
+            title="Cambiar ciudad"
+          >‹</button>
+        )}
         {config.welcomeBadge ? (
           <img
             src={config.welcomeBadge}
@@ -184,17 +226,19 @@ export default function App() {
             {selectedCount > 0 ? `${selectedCount} seleccionados` : 'Toca las cards para seleccionar'}
           </p>
         </div>
-        <div className="flex gap-1">
-          {config.dates.map((d) => (
-            <span
-              key={d.id}
-              className="text-xs px-2 py-1 rounded-full font-semibold"
-              style={{ backgroundColor: '#FFDF00', color: '#002776' }}
-            >
-              {d.shortLabel}
-            </span>
-          ))}
-        </div>
+        {config.dates.length > 0 && (
+          <div className="flex gap-1">
+            {config.dates.map((d) => (
+              <span
+                key={d.id}
+                className="text-xs px-2 py-1 rounded-full font-semibold"
+                style={{ backgroundColor: '#FFDF00', color: '#002776' }}
+              >
+                {d.shortLabel}
+              </span>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Content */}
@@ -214,7 +258,9 @@ export default function App() {
             )}
           </p>
           <p className="text-gray-500 text-sm mt-1">
-            Marca los lugares que te gustaría visitar y elige qué día
+            {config.dates.length > 0
+              ? 'Marca los lugares que te gustaría visitar y elige qué día'
+              : 'Marca los lugares que te gustaría visitar'}
           </p>
         </div>
 
