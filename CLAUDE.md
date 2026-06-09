@@ -1,7 +1,7 @@
 # Consulta Viajes — Claude Code Config
 
 ## Proyecto
-App web para que Melisa escoja lugares a visitar en Río de Janeiro. Interfaz estilo Brasil. Código reutilizable para otras ciudades.
+App web para que Melisa escoja lugares a visitar en Brasil. **Dos ciudades:** Río de Janeiro y São Paulo, con selector de ciudad (un solo link). Interfaz estilo Brasil. Código reutilizable para más ciudades vía registry.
 
 ## Stack
 - React 19 + Vite 8 + TypeScript
@@ -17,17 +17,23 @@ npm run deploy   # build + push a gh-pages (manual)
 ```
 
 ## Estructura clave
+- `src/data/cities/index.ts` — **registry** `cities = [rio, sp]` + `defaultCityId`
 - `src/data/cities/rio.ts` — config de Río (lugares, fechas, tema, imágenes)
+- `src/data/cities/sp.ts` — config de São Paulo (28 lugares, `dates: []` = sin selector de días)
 - `src/types/city.ts` — tipos TypeScript (CityConfig, Place, TravelDate, etc.)
-- `src/components/` — WelcomeScreen, CategorySection, PlaceCard, StickyBar, SuccessScreen
-- `src/App.tsx` — orquestador principal, maneja estado y envío a Gist API
+- `src/components/` — CityPicker, WelcomeScreen, CategorySection, PlaceCard, StickyBar, SuccessScreen
+- `src/App.tsx` — orquestador: selector de ciudad, estado por ciudad, envío a Gist API
 - `.github/workflows/deploy.yml` — auto-deploy a GitHub Pages en push a main
 
+## Ciudades y días
+- Si el registry tiene >1 ciudad, App arranca en `CityPicker` (selector). Con 1 sola, va directo.
+- Selecciones independientes por ciudad (`selectionsByCity`).
+- Si una ciudad tiene `dates: []`, se oculta TODO el UI de fechas (header, welcome, card). SP usa esto.
+
 ## Para agregar otra ciudad
-1. Copia `src/data/cities/rio.ts` → nueva ciudad
-2. Edita todos los campos (lugares, fechas, tema)
-3. En `App.tsx` cambia `import rio from './data/cities/rio'`
-4. Actualiza `base` en `vite.config.ts` con el nombre del nuevo repo
+1. Copia `src/data/cities/rio.ts` (o `sp.ts`) → nueva ciudad, edita campos (lugares, fechas, tema).
+2. Añádela al array `cities` en `src/data/cities/index.ts`. El selector aparece solo.
+3. (Opcional) decoración propia en `public/decor/<ciudad>/` y cablear con `asset()`.
 
 ## Imágenes
 - Lugares famosos: `https://images.unsplash.com/photo-{ID}?auto=format&fit=crop&w=800&q=80`

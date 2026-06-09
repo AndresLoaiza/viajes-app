@@ -1,8 +1,10 @@
-# 🗺️ Consulta Viajes — Río de Janeiro
+# 🗺️ Consulta Viajes — Brasil (Río & São Paulo)
 
-App web estática para planear un viaje en pareja. Andrés comparte un link con Melisa; ella explora los lugares, marca los que quiere visitar, elige día preferido y agrega notas. Al enviar, la selección se guarda como **Gist secreto** en la cuenta de GitHub de Andrés (sin backend, sin servidor).
+App web estática para planear un viaje en pareja. Andrés comparte un link con Melisa; ella elige primero la ciudad (**Río de Janeiro** o **São Paulo**), explora los lugares, marca los que quiere visitar, elige día preferido y agrega notas. Al enviar, la selección se guarda como **Gist secreto** en la cuenta de GitHub de Andrés (sin backend, sin servidor).
 
 **App en vivo:** https://andresloaiza.github.io/viajes-app/
+
+> Río usa fechas (Melisa elige día por lugar); São Paulo va sin fechas (solo marca lugares). El selector de día se oculta automáticamente cuando la ciudad no tiene `dates`.
 
 ---
 
@@ -25,16 +27,21 @@ npm run build    # build producción → dist/
 
 ```
 src/
-├── App.tsx                  # orquestador: estado de selección + envío a Gist API
+├── App.tsx                  # orquestador: selector de ciudad, estado por ciudad, envío a Gist API
 ├── types/city.ts            # tipos (CityConfig, Place, TravelDate, PlaceSelection…)
-├── data/cities/rio.ts       # TODA la data de Río (lugares, fechas, tema, imágenes)
+├── data/cities/
+│   ├── index.ts            # registry: cities = [rio, sp] + defaultCityId
+│   ├── rio.ts              # data de Río (lugares, fechas, tema, imágenes)
+│   └── sp.ts               # data de São Paulo (28 lugares, sin fechas)
 └── components/
-    ├── WelcomeScreen.tsx    # pantalla de bienvenida
-    ├── CategorySection.tsx  # agrupa lugares por categoría
-    ├── PlaceCard.tsx        # card con carrusel de fotos + selección
-    ├── StickyBar.tsx        # barra inferior con contador + botón enviar
-    └── SuccessScreen.tsx    # confirmación tras enviar
-public/decor/                # ilustraciones Ideogram (hero, og, icon, mascota…)
+    ├── CityPicker.tsx      # selector de ciudad (landing si hay >1 ciudad)
+    ├── WelcomeScreen.tsx   # pantalla de bienvenida (por ciudad)
+    ├── CategorySection.tsx # agrupa lugares por categoría
+    ├── PlaceCard.tsx       # card con carrusel de fotos + selección
+    ├── StickyBar.tsx       # barra inferior con contador + botón enviar
+    └── SuccessScreen.tsx   # confirmación tras enviar
+public/decor/                # ilustraciones Ideogram de Río (hero, og, icon, mascota…)
+public/decor/sp/             # ilustraciones Ideogram de São Paulo
 .github/workflows/deploy.yml # build + deploy a Pages en push a main
 ```
 
@@ -42,7 +49,7 @@ public/decor/                # ilustraciones Ideogram (hero, og, icon, mascota�
 
 1. La app lee `import.meta.env.VITE_GIST_TOKEN` (token fine-grained con permiso **solo Gists** r/w).
 2. Al enviar, hace `POST https://api.github.com/gists` con un gist secreto que contiene:
-   - `Melisa-rio-<timestamp>.json` — payload estructurado (lugares, días, notas).
+   - `Melisa-<ciudad>-<timestamp>.json` — payload estructurado (lugares, días, notas).
    - `resumen.md` — versión legible del mensaje.
 3. Los envíos llegan a https://gist.github.com/AndresLoaiza (privados). **No** hay email.
 
@@ -63,11 +70,13 @@ Las respuestas descargadas se guardan en `../respuestas/`.
 
 ## Reutilizar para otra ciudad
 
-El 100% de los datos específicos de una ciudad vive en `src/data/cities/rio.ts`.
+El 100% de los datos específicos de una ciudad vive en su archivo `src/data/cities/<ciudad>.ts`.
 
-1. Copiar `rio.ts` → `<ciudad>.ts` y editar lugares, fechas, tema e imágenes.
-2. En `App.tsx`, cambiar `import rio from './data/cities/rio'`.
-3. Actualizar `base` en `vite.config.ts` con el nombre del nuevo repo.
+1. Copiar `rio.ts` (o `sp.ts`) → `<ciudad>.ts` y editar lugares, fechas, tema e imágenes.
+2. Añadir la ciudad al array `cities` en `src/data/cities/index.ts` → el selector aparece solo.
+3. (Opcional) decoración propia en `public/decor/<ciudad>/`, cableada con `asset()`.
+
+Si una ciudad lleva `dates: []`, la app oculta todo el UI de fechas (es lo que hace São Paulo).
 
 ## Paleta (Brasil)
 
