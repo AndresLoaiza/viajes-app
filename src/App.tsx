@@ -54,7 +54,9 @@ function buildEmailBody(config: CityConfig, selections: SelectionsMap): string {
 export default function App() {
   const multiCity = cities.length > 1;
   const [cityId, setCityId] = useState<string>(defaultCityId);
-  const [screen, setScreen] = useState<Screen>(multiCity ? 'picker' : 'welcome');
+  // Arrancamos directo en la ciudad por defecto (São Paulo). El selector queda
+  // accesible vía el botón "‹ / Cambiar ciudad" para alternar con Río.
+  const [screen, setScreen] = useState<Screen>('welcome');
 
   const config = useMemo(
     () => cities.find((c) => c.id === cityId) ?? cities[0],
