@@ -132,6 +132,20 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
           <>
             {/* Stack */}
             <div className="relative w-full max-w-sm" style={{ height: '60vh', maxHeight: 520 }}>
+              {/* Card detrás: solo visible al arrastrar o al salir */}
+              {(!!dx || !!leaving) && places[pos + 1] && (
+                <div
+                  className="absolute inset-0 rounded-3xl bg-white shadow-md overflow-hidden"
+                  style={{ transform: 'scale(0.95) translateY(12px)', opacity: 0.7 }}
+                >
+                  <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${category.color}22, ${category.color}55)` }}>
+                    {imgOf(places[pos + 1]) && (
+                      <img src={imgOf(places[pos + 1])!} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Card superior */}
               {current && (
                 <div
