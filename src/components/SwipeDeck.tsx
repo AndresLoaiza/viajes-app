@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Category, Place, SelectionsMap } from '../types/city';
 import HighlightsModal from './HighlightsModal';
 
@@ -16,22 +16,13 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
   const [pos, setPos] = useState(0);
   const [dx, setDx] = useState(0);
   const [leaving, setLeaving] = useState<0 | 1 | -1>(0); // 1 like, -1 skip
-  const [entering, setEntering] = useState(false); // carta nueva sube desde atrás
   const [imgBroken, setImgBroken] = useState<Record<string, boolean>>({});
   const [showObras, setShowObras] = useState(false);
-
-  // Una vez montada la carta nueva en pose "atrás", la soltamos para que suba.
-  useEffect(() => {
-    if (!entering) return;
-    const t = window.setTimeout(() => setEntering(false), 20);
-    return () => window.clearTimeout(t);
-  }, [entering]);
 
   const startX = useRef(0);
   const dragging = useRef(false);
 
   const current = places[pos];
-  const next = places[pos + 1];
   const done = pos >= places.length;
   const selectedCount = places.filter((p) => selections[p.id]?.selected).length;
 
@@ -43,7 +34,6 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
     window.setTimeout(() => {
       setLeaving(0);
       setDx(0);
-      setEntering(true);       // monta la carta nueva en pose "atrás" (sin flash)
       setPos((p) => p + 1);
     }, 260);
   };
@@ -75,9 +65,7 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
 
   const topTransform = leaving
     ? `translateX(${leaving * 600}px) rotate(${leaving * 18}deg)`
-    : entering
-      ? 'scale(0.95) translateY(12px)' // misma pose que la card de atrás → sube suave
-      : `translateX(${dx}px) rotate(${dx * 0.04}deg)`;
+    : `translateX(${dx}px) rotate(${dx * 0.04}deg)`;
   const likeOpacity = Math.min(1, Math.max(0, dx / THRESHOLD));
   const nopeOpacity = Math.min(1, Math.max(0, -dx / THRESHOLD));
 
@@ -144,29 +132,15 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
           <>
             {/* Stack */}
             <div className="relative w-full max-w-sm" style={{ height: '60vh', maxHeight: 520 }}>
-              {/* Card detrás (profundidad) */}
-              {next && (
-                <div
-                  className="absolute inset-0 rounded-3xl bg-white shadow-md overflow-hidden"
-                  style={{ transform: 'scale(0.95) translateY(12px)', opacity: 0.7 }}
-                >
-                  <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${category.color}22, ${category.color}55)` }}>
-                    {imgOf(next) && (
-                      <img src={imgOf(next)!} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Card superior */}
               {current && (
                 <div
+                  key={pos}
                   className="absolute inset-0 rounded-3xl bg-white shadow-xl overflow-hidden select-none touch-none"
                   style={{
                     transform: topTransform,
-                    opacity: entering ? 0.7 : 1,
-                    transition: leaving || entering || !dragging.current
-                      ? 'transform 0.26s ease-out, opacity 0.26s ease-out'
+                    transition: leaving || !dragging.current
+                      ? 'transform 0.26s ease-out'
                       : 'none',
                     cursor: 'grab',
                   }}
