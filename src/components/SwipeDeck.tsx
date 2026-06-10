@@ -132,15 +132,26 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
           <>
             {/* Stack */}
             <div className="relative w-full max-w-sm" style={{ height: '60vh', maxHeight: 520 }}>
-              {/* Card detrás: solo visible al arrastrar o al salir, sin imagen */}
-              {(!!dx || !!leaving) && places[pos + 1] && (
+              {/* Card detrás: card completa (imagen + nombre) solo al arrastrar o al salir */}
+              {(!!dx || !!leaving) && places[pos + 1] && (() => { const n = places[pos + 1]; return (
                 <div
                   className="absolute inset-0 rounded-3xl bg-white shadow-md overflow-hidden"
                   style={{ transform: 'scale(0.95) translateY(12px)', opacity: 0.7 }}
                 >
-                  <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${category.color}22, ${category.color}55)` }} />
+                  <div
+                    className="relative h-[62%] w-full"
+                    style={{ background: `linear-gradient(135deg, ${category.color}22, ${category.color}55)` }}
+                  >
+                    {imgOf(n) && (
+                      <img src={imgOf(n)!} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-display font-bold text-gray-800 text-lg leading-tight">{n.name}</h3>
+                    <p className="text-gray-500 text-sm leading-snug mt-1 line-clamp-2">{n.description}</p>
+                  </div>
                 </div>
-              )}
+              ); })()}
 
               {/* Card superior */}
               {current && (
