@@ -146,9 +146,20 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
                       <img src={imgOf(n)!} alt="" className="w-full h-full object-cover" loading="lazy" />
                     )}
                   </div>
-                  <div className="p-4">
+                  <div className="p-4 h-[38%] overflow-hidden">
                     <h3 className="font-display font-bold text-gray-800 text-lg leading-tight">{n.name}</h3>
                     <p className="text-gray-500 text-sm leading-snug mt-1 line-clamp-2">{n.description}</p>
+                    {n.tip && (
+                      <p className="mt-2 text-xs font-medium px-2 py-1 rounded-lg inline-block"
+                        style={{ backgroundColor: `${category.color}18`, color: category.color }}>
+                        💡 {n.tip}
+                      </p>
+                    )}
+                    {n.highlights?.length && (
+                      <p className="mt-3 text-sm font-semibold" style={{ color: category.color }}>
+                        🎨 {n.highlightsLabel ?? 'Ver obras destacadas'}
+                      </p>
+                    )}
                   </div>
                 </div>
               ); })()}
