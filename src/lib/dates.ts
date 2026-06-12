@@ -11,9 +11,11 @@ export function daysUntil(iso: string, now: Date = new Date()): number {
 }
 
 export function formatDayEs(iso: string): string {
-  return parseLocal(iso).toLocaleDateString('es-CO', {
+  const s = parseLocal(iso).toLocaleDateString('es-CO', {
     weekday: 'long', day: 'numeric', month: 'long',
   });
+  // Solo la primera letra en mayúscula ("Jueves, 25 de junio")
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 export function isToday(iso: string, now: Date = new Date()): boolean {

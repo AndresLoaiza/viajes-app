@@ -1,0 +1,49 @@
+// Smoke test del flujo: gate → identidad → hub → viaje Brasil (Inicio).
+import { chromium } from 'playwright';
+
+const BASE = 'http://localhost:5173/viajes-app/';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+
+const errors = [];
+page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+
+await page.goto(BASE, { waitUntil: 'networkidle' });
+await page.screenshot({ path: 'scripts/shot-1-gate.png' });
+
+// Paso 1: código incorrecto → error
+await page.fill('#access-code', 'malo');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(600);
+const errVisible = await page.locator('[role="alert"]').isVisible();
+
+// Paso 2: código correcto
+await page.fill('#access-code', 'brasil2026');
+await page.keyboard.press('Enter');
+await page.waitForSelector('text=¿Quién eres?', { timeout: 5000 });
+await page.screenshot({ path: 'scripts/shot-2-who.png' });
+
+// Paso 3: elegir Andrés → hub
+await page.click('text=Andrés');
+await page.waitForSelector('text=Nuestros Viajes', { timeout: 5000 });
+await page.waitForTimeout(800);
+await page.screenshot({ path: 'scripts/shot-3-hub.png' });
+
+// Paso 4: abrir Brasil → Inicio con countdown
+await page.click('text=Brasil');
+await page.waitForSelector('text=Faltan', { timeout: 5000 });
+await page.waitForTimeout(800);
+await page.screenshot({ path: 'scripts/shot-4-inicio.png' });
+
+// Paso 5: recarga → entra directo (identidad persistida)
+await page.reload({ waitUntil: 'networkidle' });
+const directo = await page.locator('text=Nuestros Viajes').first().isVisible();
+
+console.log(JSON.stringify({
+  errorConCodigoMalo: errVisible,
+  entraDirectoTrasRecarga: directo,
+  erroresJs: errors,
+}, null, 2));
+
+await browser.close();
