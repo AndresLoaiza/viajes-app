@@ -50,6 +50,25 @@ await page.click('[aria-label="Borrar SMOKE TEST — borrar"]');
 await page.waitForSelector('text=SMOKE TEST — borrar', { state: 'detached', timeout: 8000 });
 const itinerarioOk = true;
 
+// Paso 5b: Lugares — Foz, categoría, seleccionar y deseleccionar (Supabase real)
+await page.click('nav >> text=Lugares');
+await page.waitForSelector('text=Marquen lo que les gustaría conocer', { timeout: 5000 });
+await page.click('[role="tab"]:has-text("Foz")');
+await page.click('text=Cataratas & Naturaleza');
+await page.waitForSelector('text=Parque das Aves', { timeout: 5000 });
+await page.waitForTimeout(1200); // imágenes
+await page.screenshot({ path: 'scripts/shot-6-lugares.png' });
+const imgOk = await page.evaluate(() => {
+  const imgs = [...document.querySelectorAll('img')];
+  return imgs.some((i) => i.naturalWidth > 0);
+});
+// Toggle selección: tap en el card del Parque das Aves
+await page.click('h3:has-text("Parque das Aves")');
+await page.waitForSelector('text=Agregar nota', { timeout: 8000 });
+await page.click('h3:has-text("Parque das Aves")');
+await page.waitForSelector('text=Agregar nota', { state: 'detached', timeout: 8000 });
+const lugaresOk = true;
+
 // Paso 6: recarga → entra directo (identidad persistida)
 await page.reload({ waitUntil: 'networkidle' });
 const directo = await page.locator('text=Nuestros Viajes').first().isVisible();
@@ -57,6 +76,8 @@ const directo = await page.locator('text=Nuestros Viajes').first().isVisible();
 console.log(JSON.stringify({
   errorConCodigoMalo: errVisible,
   itinerarioCrudOk: itinerarioOk,
+  lugaresFotosCargan: imgOk,
+  lugaresToggleOk: lugaresOk,
   entraDirectoTrasRecarga: directo,
   erroresJs: errors,
 }, null, 2));

@@ -6,6 +6,7 @@ import TripHub from './components/hub/TripHub';
 import TripShell from './components/shell/TripShell';
 import InicioModule from './modules/inicio/InicioModule';
 import ItinerarioModule from './modules/itinerario/ItinerarioModule';
+import LugaresModule from './modules/lugares/LugaresModule';
 import { getStoredIdentity } from './lib/identity';
 import type { TravelerId, TripConfig, ModuleId } from './types/trip';
 
@@ -24,7 +25,9 @@ export default function App() {
         return <InicioModule trip={trip} />;
       case 'itinerario':
         return <ItinerarioModule trip={trip} identity={identity} />;
-      // lugares: Task 11 · logistica / galeria / mapa / pendientes: Planes 2-3
+      case 'lugares':
+        return <LugaresModule trip={trip} identity={identity} />;
+      // logistica / galeria / mapa / pendientes: Planes 2-3
       default:
         return (
           <div className="max-w-xl mx-auto px-5 py-16 text-center text-gray-400">
