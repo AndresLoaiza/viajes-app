@@ -1,0 +1,229 @@
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, Plus, Trash2, X } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useTable } from '../../lib/realtime';
+import { formatDayEs, isToday } from '../../lib/dates';
+import type { TripConfig, ItineraryItem, TravelerId } from '../../types/trip';
+
+const WEEKDAY_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+function chipLabel(date: string): { dia: string; num: string } {
+  const [y, m, d] = date.split('-').map(Number);
+  return { dia: WEEKDAY_SHORT[new Date(y, m - 1, d).getDay()], num: String(d) };
+}
+
+/** Itinerario día-por-día: tabs de días, items con hora, agregar/borrar, realtime. */
+export default function ItinerarioModule({ trip, identity }: {
+  trip: TripConfig;
+  identity: TravelerId;
+}) {
+  const [activeDate, setActiveDate] = useState(
+    () => trip.days.find((d) => isToday(d.date))?.date ?? trip.days[0]?.date,
+  );
+  const { rows, loading, apply } = useTable<ItineraryItem>('itinerary_items', trip.id);
+  const [showForm, setShowForm] = useState(false);
+  const [fTime, setFTime] = useState('');
+  const [fTitle, setFTitle] = useState('');
+  const [fNote, setFNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
+
+  const day = trip.days.find((d) => d.date === activeDate);
+  const ciudad = day ? trip.cities.find((c) => c.id === day.cityId) : null;
+  const items = rows
+    .filter((i) => i.date === activeDate)
+    .sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99'));
+
+  async function addItem() {
+    if (!fTitle.trim() || saving) return;
+    setSaving(true);
+    setErrMsg('');
+    const { data, error } = await supabase.from('itinerary_items').insert({
+      trip_id: trip.id,
+      date: activeDate,
+      time: fTime || null,
+      title: fTitle.trim(),
+      note: fNote.trim() || null,
+      created_by: identity,
+    }).select().single();
+    setSaving(false);
+    if (error) {
+      setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
+      return;
+    }
+    if (data) apply({ eventType: 'INSERT', new: data, old: {} });
+    setFTime(''); setFTitle(''); setFNote('');
+    setShowForm(false);
+  }
+
+  async function removeItem(id: string) {
+    if (!confirm('¿Borrar este plan?')) return;
+    const { error } = await supabase.from('itinerary_items').delete().eq('id', id);
+    if (error) {
+      setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.');
+      return;
+    }
+    apply({ eventType: 'DELETE', new: {}, old: { id } });
+  }
+
+  if (!trip.days.length) return null;
+
+  return (
+    <div className="max-w-xl mx-auto py-5">
+      {/* Tabs de días */}
+      <div className="px-5 overflow-x-auto pb-2" role="tablist" aria-label="Días del viaje">
+        <div className="flex gap-2 w-max">
+          {trip.days.map((d) => {
+            const sel = d.date === activeDate;
+            const { dia, num } = chipLabel(d.date);
+            const c = trip.cities.find((x) => x.id === d.cityId);
+            const esHoy = isToday(d.date);
+            return (
+              <button
+                key={d.date}
+                role="tab"
+                aria-selected={sel}
+                onClick={() => { setActiveDate(d.date); setErrMsg(''); }}
+                className={`min-w-14 min-h-11 rounded-2xl px-3 py-1.5 flex flex-col items-center cursor-pointer transition-colors duration-200 border-2
+                  ${sel ? 'bg-brasil-green border-brasil-green text-white' : 'bg-white border-sand-dark text-gray-600'}
+                  ${esHoy && !sel ? 'border-brasil-yellow' : ''}`}
+              >
+                <span className="text-[10px] font-semibold uppercase">{dia}</span>
+                <span className="font-display font-bold text-lg leading-none">{num}</span>
+                <span className="text-[9px] opacity-75">{c?.name.split(' ')[0]}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="px-5 mt-3">
+        <h2 className="font-display font-bold text-xl text-gray-800">{formatDayEs(activeDate)}</h2>
+        {ciudad && <p className="text-sm text-gray-500">{ciudad.flag} {ciudad.name}</p>}
+
+        {day?.note && (
+          <div className="flex items-center gap-2 rounded-xl bg-brasil-yellow/25 text-amber-800 text-sm font-semibold px-3 py-2 mt-3">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden />
+            {day.note}
+          </div>
+        )}
+
+        {errMsg && (
+          <div role="alert" className="mt-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold px-3 py-2">
+            {errMsg}
+          </div>
+        )}
+
+        {/* Lista de planes del día */}
+        <div className="mt-4 space-y-2">
+          {loading && <p className="text-sm text-gray-400">Cargando…</p>}
+          {!loading && items.length === 0 && (
+            <div className="rounded-2xl border-2 border-dashed border-sand-dark p-6 text-center text-gray-400">
+              <p className="font-semibold">Nada planeado aún</p>
+              <p className="text-sm mt-0.5">Toca + para agregar el primer plan</p>
+            </div>
+          )}
+          <AnimatePresence initial={false}>
+            {items.map((i) => (
+              <motion.div
+                key={i.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                className="rounded-2xl bg-white border border-sand-dark p-4 flex items-start gap-3"
+              >
+                <span className="font-mono text-sm text-brasil-green font-bold w-12 flex-shrink-0 pt-0.5">
+                  {i.time ? i.time.slice(0, 5) : '—'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-800">{i.title}</p>
+                  {i.note && <p className="text-sm text-gray-500">{i.note}</p>}
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {i.created_by === 'andres' ? 'Andrés' : 'Melisa'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => removeItem(i.id)}
+                  aria-label={`Borrar ${i.title}`}
+                  className="min-w-11 min-h-11 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200"
+                >
+                  <Trash2 className="w-4 h-4" aria-hidden />
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Form agregar */}
+        <AnimatePresence>
+          {showForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 rounded-2xl bg-white border-2 border-brasil-green p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-display font-bold text-gray-800">Nuevo plan</p>
+                  <button
+                    onClick={() => setShowForm(false)}
+                    aria-label="Cerrar formulario"
+                    className="min-w-11 min-h-11 -m-2 flex items-center justify-center text-gray-400 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" aria-hidden />
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <div>
+                    <label htmlFor="it-time" className="text-xs font-semibold text-gray-500">Hora</label>
+                    <input
+                      id="it-time" type="time" value={fTime}
+                      onChange={(e) => setFTime(e.target.value)}
+                      className="block w-28 rounded-xl border-2 border-sand-dark px-2 py-2 text-sm outline-none focus:border-brasil-green transition-colors duration-200"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label htmlFor="it-title" className="text-xs font-semibold text-gray-500">Plan *</label>
+                    <input
+                      id="it-title" type="text" value={fTitle}
+                      onChange={(e) => setFTitle(e.target.value)}
+                      placeholder="¿Qué vamos a hacer?"
+                      className="block w-full rounded-xl border-2 border-sand-dark px-3 py-2 text-sm outline-none focus:border-brasil-green transition-colors duration-200"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="it-note" className="text-xs font-semibold text-gray-500">Nota</label>
+                  <input
+                    id="it-note" type="text" value={fNote}
+                    onChange={(e) => setFNote(e.target.value)}
+                    placeholder="Detalles, dirección, reserva…"
+                    className="block w-full rounded-xl border-2 border-sand-dark px-3 py-2 text-sm outline-none focus:border-brasil-green transition-colors duration-200"
+                  />
+                </div>
+                <button
+                  onClick={addItem}
+                  disabled={!fTitle.trim() || saving}
+                  className="w-full min-h-11 rounded-xl font-display font-bold text-white bg-brasil-green disabled:opacity-50 cursor-pointer transition-opacity duration-200 hover:opacity-90"
+                >
+                  {saving ? 'Guardando…' : 'Agregar al día'}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-4 w-full min-h-12 rounded-2xl border-2 border-dashed border-brasil-green text-brasil-green font-display font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors duration-200 hover:bg-brasil-green/5"
+          >
+            <Plus className="w-5 h-5" aria-hidden /> Agregar plan
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

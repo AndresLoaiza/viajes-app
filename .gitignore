@@ -31,3 +31,6 @@ ruvector.db
 *.njsproj
 *.sln
 *.sw?
+
+# Smoke test screenshots
+scripts/shot-*.png
