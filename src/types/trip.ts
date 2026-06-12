@@ -87,6 +87,17 @@ export interface Ticket {
   created_at: string;
 }
 
+export interface Photo {
+  id: string;
+  trip_id: string;
+  file_path: string;        // ruta en bucket photos
+  taken_on: string | null;  // 'YYYY-MM-DD' (aprox: lastModified del archivo)
+  city_id: string | null;
+  caption: string | null;
+  uploaded_by: TravelerId;
+  created_at: string;
+}
+
 export interface TripPlaceSelection {
   id: string;
   trip_id: string;

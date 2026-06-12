@@ -9,6 +9,7 @@ import InicioModule from './modules/inicio/InicioModule';
 import ItinerarioModule from './modules/itinerario/ItinerarioModule';
 import LugaresModule from './modules/lugares/LugaresModule';
 import LogisticaModule from './modules/logistica/LogisticaModule';
+import GaleriaModule from './modules/galeria/GaleriaModule';
 import { getStoredIdentity } from './lib/identity';
 import type { TravelerId, TripConfig, ModuleId } from './types/trip';
 
@@ -36,7 +37,9 @@ export default function App() {
             return <LugaresModule trip={trip} identity={identity} />;
           case 'logistica':
             return <LogisticaModule trip={trip} identity={identity} />;
-          // galeria / mapa / pendientes: Planes 2-3
+          case 'galeria':
+            return <GaleriaModule trip={trip} identity={identity} />;
+          // mapa / pendientes: Plan 3
           default:
             return (
               <div className="max-w-xl mx-auto px-5 py-16 text-center text-gray-400">
