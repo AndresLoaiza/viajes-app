@@ -21,7 +21,7 @@ export default function ItinerarioModule({ trip, identity }: {
   const [activeDate, setActiveDate] = useState(
     () => trip.days.find((d) => isToday(d.date))?.date ?? trip.days[0]?.date,
   );
-  const { rows, loading } = useTable<ItineraryItem>('itinerary_items', trip.id);
+  const { rows, loading, apply } = useTable<ItineraryItem>('itinerary_items', trip.id);
   const [showForm, setShowForm] = useState(false);
   const [fTime, setFTime] = useState('');
   const [fTitle, setFTitle] = useState('');
@@ -39,19 +39,20 @@ export default function ItinerarioModule({ trip, identity }: {
     if (!fTitle.trim() || saving) return;
     setSaving(true);
     setErrMsg('');
-    const { error } = await supabase.from('itinerary_items').insert({
+    const { data, error } = await supabase.from('itinerary_items').insert({
       trip_id: trip.id,
       date: activeDate,
       time: fTime || null,
       title: fTitle.trim(),
       note: fNote.trim() || null,
       created_by: identity,
-    });
+    }).select().single();
     setSaving(false);
     if (error) {
       setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
       return;
     }
+    if (data) apply({ eventType: 'INSERT', new: data, old: {} });
     setFTime(''); setFTitle(''); setFNote('');
     setShowForm(false);
   }
@@ -59,7 +60,11 @@ export default function ItinerarioModule({ trip, identity }: {
   async function removeItem(id: string) {
     if (!confirm('¿Borrar este plan?')) return;
     const { error } = await supabase.from('itinerary_items').delete().eq('id', id);
-    if (error) setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.');
+    if (error) {
+      setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.');
+      return;
+    }
+    apply({ eventType: 'DELETE', new: {}, old: { id } });
   }
 
   if (!trip.days.length) return null;
@@ -79,7 +84,7 @@ export default function ItinerarioModule({ trip, identity }: {
                 key={d.date}
                 role="tab"
                 aria-selected={sel}
-                onClick={() => setActiveDate(d.date)}
+                onClick={() => { setActiveDate(d.date); setErrMsg(''); }}
                 className={`min-w-14 min-h-11 rounded-2xl px-3 py-1.5 flex flex-col items-center cursor-pointer transition-colors duration-200 border-2
                   ${sel ? 'bg-brasil-green border-brasil-green text-white' : 'bg-white border-sand-dark text-gray-600'}
                   ${esHoy && !sel ? 'border-brasil-yellow' : ''}`}
@@ -141,7 +146,7 @@ export default function ItinerarioModule({ trip, identity }: {
                 <button
                   onClick={() => removeItem(i.id)}
                   aria-label={`Borrar ${i.title}`}
-                  className="min-w-9 min-h-9 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200"
+                  className="min-w-11 min-h-11 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200"
                 >
                   <Trash2 className="w-4 h-4" aria-hidden />
                 </button>
@@ -165,7 +170,7 @@ export default function ItinerarioModule({ trip, identity }: {
                   <button
                     onClick={() => setShowForm(false)}
                     aria-label="Cerrar formulario"
-                    className="min-w-9 min-h-9 flex items-center justify-center text-gray-400 cursor-pointer"
+                    className="min-w-11 min-h-11 -m-2 flex items-center justify-center text-gray-400 cursor-pointer"
                   >
                     <X className="w-4 h-4" aria-hidden />
                   </button>

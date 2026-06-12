@@ -22,10 +22,15 @@ export function applyChange<T extends { id: string }>(rows: T[], p: ChangePayloa
   }
 }
 
-/** Select inicial + subscripción realtime, filtrado por trip_id. */
+/**
+ * Select inicial + subscripción realtime, filtrado por trip_id.
+ * `apply` permite reflejar mutaciones propias al instante (no esperar el eco
+ * realtime); applyChange es idempotente, así que el eco duplicado no daña.
+ */
 export function useTable<T extends { id: string }>(table: string, tripId: string) {
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
+  const apply = (p: ChangePayload) => setRows((prev) => applyChange(prev, p));
 
   useEffect(() => {
     let active = true;
@@ -43,5 +48,5 @@ export function useTable<T extends { id: string }>(table: string, tripId: string
     return () => { active = false; supabase.removeChannel(channel); };
   }, [table, tripId]);
 
-  return { rows, loading };
+  return { rows, loading, apply };
 }

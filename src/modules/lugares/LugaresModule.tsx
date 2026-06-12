@@ -18,10 +18,11 @@ export default function LugaresModule({ trip, identity }: {
 }) {
   const [cityId, setCityId] = useState(trip.cities[0]?.id ?? '');
   const [activeCat, setActiveCat] = useState<string | null>(null);
-  const { rows } = useTable<TripPlaceSelection>('place_selections', trip.id);
+  const { rows, apply } = useTable<TripPlaceSelection>('place_selections', trip.id);
 
   // Overlay optimista: el toggle se siente inmediato mientras llega el eco realtime.
   const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [errMsg, setErrMsg] = useState('');
   // Notas en edición (estado local inmediato + update debounced a Supabase).
   const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
   const noteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -60,17 +61,23 @@ export default function LugaresModule({ trip, identity }: {
 
     if (updated.selected !== wasSelected) {
       setPending((p) => ({ ...p, [updated.placeId]: updated.selected }));
+      setErrMsg('');
+      let error = null;
       if (updated.selected) {
-        await supabase.from('place_selections').insert({
+        const res = await supabase.from('place_selections').insert({
           trip_id: trip.id,
           city_id: cityId,
           place_id: updated.placeId,
           selected_by: identity,
           note: updated.notes || null,
-        });
+        }).select().single();
+        error = res.error;
+        if (res.data) apply({ eventType: 'INSERT', new: res.data, old: {} });
       } else if (row) {
-        await supabase.from('place_selections').delete().eq('id', row.id);
+        ({ error } = await supabase.from('place_selections').delete().eq('id', row.id));
+        if (!error) apply({ eventType: 'DELETE', new: {}, old: { id: row.id } });
       }
+      if (error) setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
       setPending((p) => {
         const { [updated.placeId]: _drop, ...rest } = p;
         return rest;
@@ -119,6 +126,12 @@ export default function LugaresModule({ trip, identity }: {
           );
         })}
       </div>
+
+      {errMsg && (
+        <div role="alert" className="mb-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold px-3 py-2">
+          {errMsg}
+        </div>
+      )}
 
       {!catConfig ? (
         <>
