@@ -27,6 +27,9 @@ jobs:
       - run: npm run build
         env:
           VITE_GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_ACCESS_CODE_HASH: ${{ secrets.ACCESS_CODE_HASH }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
