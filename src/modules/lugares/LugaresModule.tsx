@@ -114,7 +114,7 @@ export default function LugaresModule({ trip, identity }: {
               className={`flex-1 min-h-11 rounded-2xl px-2 font-display font-bold text-sm cursor-pointer transition-colors duration-200 border-2
                 ${sel ? 'bg-brasil-blue border-brasil-blue text-white' : 'bg-white border-sand-dark text-gray-600'}`}
             >
-              {c.name.replace('Río de Janeiro', 'Río').replace('São Paulo', 'São Paulo').replace('Foz do Iguaçu', 'Foz')}
+              {({ rio: 'Río', foz: 'Foz', sp: 'São Paulo' } as Record<string, string>)[c.id] ?? c.name}
             </button>
           );
         })}

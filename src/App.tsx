@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MotionConfig } from 'framer-motion';
 import './index.css';
 
 import AccessGate from './components/gate/AccessGate';
@@ -16,27 +17,35 @@ export default function App() {
   const [identity, setIdentity] = useState<TravelerId | null>(getStoredIdentity());
   const [trip, setTrip] = useState<TripConfig | null>(null);
 
-  if (!identity) return <AccessGate onUnlocked={setIdentity} />;
-  if (!trip) return <TripHub onOpen={setTrip} />;
+  const content = !identity ? (
+    <AccessGate onUnlocked={setIdentity} />
+  ) : !trip ? (
+    <TripHub onOpen={setTrip} />
+  ) : (
+    <TripShell
+      trip={trip}
+      onBack={() => setTrip(null)}
+      renderModule={(m: ModuleId) => {
+        switch (m) {
+          case 'inicio':
+            return <InicioModule trip={trip} />;
+          case 'itinerario':
+            return <ItinerarioModule trip={trip} identity={identity} />;
+          case 'lugares':
+            return <LugaresModule trip={trip} identity={identity} />;
+          // logistica / galeria / mapa / pendientes: Planes 2-3
+          default:
+            return (
+              <div className="max-w-xl mx-auto px-5 py-16 text-center text-gray-400">
+                <p className="font-display font-bold text-xl">Próximamente</p>
+                <p className="text-sm mt-1">Esta sección está en construcción</p>
+              </div>
+            );
+        }
+      }}
+    />
+  );
 
-  const renderModule = (m: ModuleId) => {
-    switch (m) {
-      case 'inicio':
-        return <InicioModule trip={trip} />;
-      case 'itinerario':
-        return <ItinerarioModule trip={trip} identity={identity} />;
-      case 'lugares':
-        return <LugaresModule trip={trip} identity={identity} />;
-      // logistica / galeria / mapa / pendientes: Planes 2-3
-      default:
-        return (
-          <div className="max-w-xl mx-auto px-5 py-16 text-center text-gray-400">
-            <p className="font-display font-bold text-xl">Próximamente</p>
-            <p className="text-sm mt-1">Esta sección está en construcción</p>
-          </div>
-        );
-    }
-  };
-
-  return <TripShell trip={trip} onBack={() => setTrip(null)} renderModule={renderModule} />;
+  // reducedMotion="user" → framer-motion respeta prefers-reduced-motion
+  return <MotionConfig reducedMotion="user">{content}</MotionConfig>;
 }

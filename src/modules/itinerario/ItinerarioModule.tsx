@@ -27,6 +27,7 @@ export default function ItinerarioModule({ trip, identity }: {
   const [fTitle, setFTitle] = useState('');
   const [fNote, setFNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
 
   const day = trip.days.find((d) => d.date === activeDate);
   const ciudad = day ? trip.cities.find((c) => c.id === day.cityId) : null;
@@ -37,7 +38,8 @@ export default function ItinerarioModule({ trip, identity }: {
   async function addItem() {
     if (!fTitle.trim() || saving) return;
     setSaving(true);
-    await supabase.from('itinerary_items').insert({
+    setErrMsg('');
+    const { error } = await supabase.from('itinerary_items').insert({
       trip_id: trip.id,
       date: activeDate,
       time: fTime || null,
@@ -46,13 +48,18 @@ export default function ItinerarioModule({ trip, identity }: {
       created_by: identity,
     });
     setSaving(false);
+    if (error) {
+      setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
+      return;
+    }
     setFTime(''); setFTitle(''); setFNote('');
     setShowForm(false);
   }
 
   async function removeItem(id: string) {
     if (!confirm('¿Borrar este plan?')) return;
-    await supabase.from('itinerary_items').delete().eq('id', id);
+    const { error } = await supabase.from('itinerary_items').delete().eq('id', id);
+    if (error) setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.');
   }
 
   if (!trip.days.length) return null;
@@ -94,6 +101,12 @@ export default function ItinerarioModule({ trip, identity }: {
           <div className="flex items-center gap-2 rounded-xl bg-brasil-yellow/25 text-amber-800 text-sm font-semibold px-3 py-2 mt-3">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden />
             {day.note}
+          </div>
+        )}
+
+        {errMsg && (
+          <div role="alert" className="mt-3 rounded-xl bg-red-50 text-red-700 text-sm font-semibold px-3 py-2">
+            {errMsg}
           </div>
         )}
 
