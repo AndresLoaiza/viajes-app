@@ -1,54 +1,93 @@
-# Consulta Viajes — Claude Code Config
+# Nuestros Viajes — Claude Code Config
 
-## Proyecto
-App web para que Melisa escoja lugares a visitar en Brasil. **Dos ciudades:** Río de Janeiro y São Paulo, con selector de ciudad (un solo link). Interfaz estilo Brasil. Código reutilizable para más ciudades vía registry.
+## Qué es
+Hub compartido en vivo para Andrés y Melisa. Multi-viaje con sync realtime via Supabase. Deploy en GitHub Pages.
+
+**URL:** https://andresloaiza.github.io/viajes-app/ — código `brasil2026`
 
 ## Stack
 - React 19 + Vite 8 + TypeScript
-- Tailwind CSS v4 (`@tailwindcss/vite`)
-- GitHub Pages (deploy via GitHub Actions)
-- GitHub Gist API (cada envío = Gist secreto; sin backend)
+- Tailwind CSS v4 (`@tailwindcss/vite`, sin tailwind.config.js)
+- framer-motion (`MotionConfig reducedMotion="user"` en App.tsx raíz)
+- `@supabase/supabase-js` — Postgres + RLS + Realtime + Storage
+- vitest + jsdom (unit tests), Playwright (smoke E2E)
+- GitHub Pages via GitHub Actions (push a main = deploy)
 
 ## Comandos
 ```bash
-npm run dev      # dev server → http://localhost:5173/viajes-app/
-npm run build    # build producción → dist/
-npm run deploy   # build + push a gh-pages (manual)
+npm run dev          # dev server → http://localhost:5173/viajes-app/
+npm run build        # build producción
+npm test             # vitest (correr desde D:/ mayúscula en Windows)
+node scripts/smoke.mjs  # smoke test E2E (requiere dev server corriendo)
 ```
 
+## Supabase
+- URL: `https://gbfxpzsblnrasfvxnquk.supabase.co` (en `.env`)
+- Todas las tablas necesitan `REPLICA IDENTITY FULL` para DELETE realtime con filtro
+- Storage buckets: `photos` (galería), `docs` (boletas/PDFs)
+- Schema completo: `trips`, `days`, `itinerary_items`, `flights`, `hotels`, `tickets`, `place_selections`, `photos`, `checklist_items`, `notes`
+
 ## Estructura clave
-- `src/data/cities/index.ts` — **registry** `cities = [rio, sp]` + `defaultCityId`
-- `src/data/cities/rio.ts` — config de Río (lugares, fechas, tema, imágenes)
-- `src/data/cities/sp.ts` — config de São Paulo (28 lugares, `dates: []` = sin selector de días)
-- `src/types/city.ts` — tipos TypeScript (CityConfig, Place, TravelDate, etc.)
-- `src/components/` — CityPicker, WelcomeScreen, CategorySection, PlaceCard, StickyBar, SuccessScreen
-- `src/App.tsx` — orquestador: selector de ciudad, estado por ciudad, envío a Gist API
-- `.github/workflows/deploy.yml` — auto-deploy a GitHub Pages en push a main
+```
+src/
+  App.tsx                     — gate → hub → shell (MotionConfig aquí)
+  types/trip.ts               — TravelerId, ModuleId, TripConfig, ItineraryItem, TripPlaceSelection
+  types/city.ts               — CityConfig, Place, PlaceSelection, SelectionsMap
+  lib/
+    supabase.ts               — createClient
+    realtime.ts               — applyChange<T>, useTable<T> (fetch + realtime + apply())
+    identity.ts               — SHA-256 gate, localStorage identity
+    dates.ts                  — daysUntil, formatDayEs, isToday (local-time, no UTC)
+  data/
+    trips/brasil.ts, bogota.ts, index.ts
+    cities/rio.ts, sp.ts, foz.ts, index.ts
+  components/
+    gate/AccessGate.tsx
+    hub/TripHub.tsx
+    shell/TripShell.tsx
+    CategoryGrid.tsx, PlaceCard.tsx
+  modules/
+    inicio/InicioModule.tsx
+    itinerario/ItinerarioModule.tsx
+    lugares/LugaresModule.tsx
+    # logistica/, galeria/, mapa/, pendientes/ — por construir
+  legacy/SelectionApp.tsx     — app vieja (Gist API), NO importada, solo referencia
+```
 
-## Ciudades y días
-- Si el registry tiene >1 ciudad, App arranca en `CityPicker` (selector). Con 1 sola, va directo.
-- Selecciones independientes por ciudad (`selectionsByCity`).
-- Si una ciudad tiene `dates: []`, se oculta TODO el UI de fechas (header, welcome, card). SP usa esto.
+## Patrón realtime (todos los módulos lo usan)
+```ts
+const { rows, loading, apply } = useTable<T>('table_name', trip.id);
 
-## Para agregar otra ciudad
-1. Copia `src/data/cities/rio.ts` (o `sp.ts`) → nueva ciudad, edita campos (lugares, fechas, tema).
-2. Añádela al array `cities` en `src/data/cities/index.ts`. El selector aparece solo.
-3. (Opcional) decoración propia en `public/decor/<ciudad>/` y cablear con `asset()`.
+// Optimistic insert:
+const { data, error } = await supabase.from('table').insert({...}).select().single();
+if (data) apply({ eventType: 'INSERT', new: data, old: {} });
 
-## Imágenes
-- Lugares famosos: `https://images.unsplash.com/photo-{ID}?auto=format&fit=crop&w=800&q=80`
-- Otros: `https://picsum.photos/seed/{seed}/800/450` (estable por seed)
-- `source.unsplash.com` está deprecado desde 2024 — NO usar
+// Optimistic delete:
+const { error } = await supabase.from('table').delete().eq('id', id);
+if (!error) apply({ eventType: 'DELETE', new: {}, old: { id } });
+```
+`apply()` refleja el cambio de inmediato. El eco realtime llega después (idempotente, no duplica).
 
-## Envío (GitHub Gist)
-- App lee `import.meta.env.VITE_GIST_TOKEN` y hace POST a `https://api.github.com/gists`.
-- Token fine-grained con permiso solo "Gists" (read/write). Ver `SETUP.md` / `.env.example`.
-- Local: en `.env`. CI: secret de repo `GIST_TOKEN` → inyectado en `deploy.yml`.
-- Cada envío crea un Gist secreto en https://gist.github.com/AndresLoaiza.
+## Viajes
+| Viaje | ID | Estado | Módulos activos |
+|---|---|---|---|
+| 🇧🇷 Brasil | `brasil-2026` | upcoming | inicio, itinerario, logistica, lugares, galeria, mapa, pendientes |
+| 🇨🇴 Bogotá | `bogota-2026` | past | galeria |
+
+## Para agregar módulo nuevo
+1. Crear `src/modules/<nombre>/<Nombre>Module.tsx`
+2. Importar y añadir `case '<nombre>':` en `App.tsx` `renderModule`
+3. El módulo recibe `{ trip: TripConfig, identity: TravelerId }`
+4. Usar `useTable<RowType>('tabla', trip.id)` para datos
 
 ## Paleta Brasil
-- Verde: `#009C3B`
-- Amarillo: `#FFDF00`
-- Azul: `#002776`
-- Arena: `#F5E6C8`
-- Warm white: `#FFFDF5`
+- Verde: `#009C3B` (`brasil-green` en Tailwind)
+- Amarillo: `#FFDF00` (`brasil-yellow`)
+- Azul: `#002776` (`brasil-blue`)
+- Arena: `#F5E6C8` (`sand`)
+- Warm white: `#FFFDF5` (`warm-white`)
+
+## Reglas
+- Sin foto real → `image: ''` (no Ideogram, no placeholder)
+- Sin info verificada → omitir, no inventar
+- PowerShell: NO usar Get-Content/Set-Content con texto español (corrupción UTF-16). Usar Write tool o bash sed.
