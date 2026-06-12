@@ -5,6 +5,7 @@ import AccessGate from './components/gate/AccessGate';
 import TripHub from './components/hub/TripHub';
 import TripShell from './components/shell/TripShell';
 import InicioModule from './modules/inicio/InicioModule';
+import ItinerarioModule from './modules/itinerario/ItinerarioModule';
 import { getStoredIdentity } from './lib/identity';
 import type { TravelerId, TripConfig, ModuleId } from './types/trip';
 
@@ -21,7 +22,9 @@ export default function App() {
     switch (m) {
       case 'inicio':
         return <InicioModule trip={trip} />;
-      // itinerario / lugares: Tasks 11-12 · logistica / galeria / mapa / pendientes: Planes 2-3
+      case 'itinerario':
+        return <ItinerarioModule trip={trip} identity={identity} />;
+      // lugares: Task 11 · logistica / galeria / mapa / pendientes: Planes 2-3
       default:
         return (
           <div className="max-w-xl mx-auto px-5 py-16 text-center text-gray-400">

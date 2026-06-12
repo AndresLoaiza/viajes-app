@@ -36,12 +36,27 @@ await page.waitForSelector('text=Faltan', { timeout: 5000 });
 await page.waitForTimeout(800);
 await page.screenshot({ path: 'scripts/shot-4-inicio.png' });
 
-// Paso 5: recarga → entra directo (identidad persistida)
+// Paso 5: Itinerario — agregar plan (escribe en Supabase real) y borrarlo
+await page.click('nav >> text=Días');
+await page.waitForSelector('text=Agregar plan', { timeout: 5000 });
+await page.click('text=Agregar plan');
+await page.fill('#it-title', 'SMOKE TEST — borrar');
+await page.fill('#it-time', '09:30');
+await page.click('text=Agregar al día');
+await page.waitForSelector('text=SMOKE TEST — borrar', { timeout: 8000 });
+await page.screenshot({ path: 'scripts/shot-5-itinerario.png' });
+page.once('dialog', (d) => d.accept());
+await page.click('[aria-label="Borrar SMOKE TEST — borrar"]');
+await page.waitForSelector('text=SMOKE TEST — borrar', { state: 'detached', timeout: 8000 });
+const itinerarioOk = true;
+
+// Paso 6: recarga → entra directo (identidad persistida)
 await page.reload({ waitUntil: 'networkidle' });
 const directo = await page.locator('text=Nuestros Viajes').first().isVisible();
 
 console.log(JSON.stringify({
   errorConCodigoMalo: errVisible,
+  itinerarioCrudOk: itinerarioOk,
   entraDirectoTrasRecarga: directo,
   erroresJs: errors,
 }, null, 2));
