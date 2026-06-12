@@ -4,10 +4,10 @@ export const bogota: TripConfig = {
   id: 'bogota-2026',
   name: 'Bogotá',
   flag: '🇨🇴',
-  tagline: 'Nuestro primer viaje',
+  tagline: 'Nuestro primer viaje · Semana Santa 2026',
   status: 'past',
-  startDate: '2026-01-01', // fechas reales pendientes de Andrés; solo decorativo
-  endDate: '2026-01-01',
+  startDate: '2026-03-29',
+  endDate: '2026-04-05',
   days: [],
   cities: [],
   modules: ['galeria'],

@@ -11,6 +11,12 @@ export interface TripDay {
   note?: string;       // p.ej. 'Tarde → vuelo a Iguazú'
 }
 
+export interface TripTheme {
+  primary: string;
+  accent: string;
+  bg: string;
+}
+
 export interface TripConfig {
   id: string;
   name: string;
@@ -22,9 +28,10 @@ export interface TripConfig {
   days: TripDay[];     // [] para viajes pasados
   cities: CityConfig[];
   modules: ModuleId[];
-  theme: { primary: string; accent: string; bg: string };
+  theme: TripTheme;
 }
 
+// Filas de Supabase — snake_case intencional (coincide con columnas).
 export interface ItineraryItem {
   id: string;
   trip_id: string;

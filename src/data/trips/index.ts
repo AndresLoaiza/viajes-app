@@ -1,3 +1,6 @@
+import type { TripConfig } from '../../types/trip';
 import { brasil } from './brasil';
 import { bogota } from './bogota';
-export const trips = [brasil, bogota];
+
+// Registry de viajes: agregar uno nuevo = crear su archivo y sumarlo aquí.
+export const trips: TripConfig[] = [brasil, bogota];
