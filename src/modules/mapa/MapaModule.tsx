@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { placeCoords } from '../../data/cities/coords';
@@ -131,7 +134,7 @@ export default function MapaModule({ trip }: { trip: TripConfig; identity: Trave
   // ── Leaflet: init una vez ───────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const groupRef = useRef<L.LayerGroup | null>(null);
+  const groupRef = useRef<L.MarkerClusterGroup | null>(null);
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -140,7 +143,12 @@ export default function MapaModule({ trip }: { trip: TripConfig; identity: Trave
       maxZoom: 19,
       attribution: '© OpenStreetMap',
     }).addTo(map);
-    groupRef.current = L.layerGroup().addTo(map);
+    groupRef.current = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 50,
+      spiderfyOnMaxZoom: true,
+      chunkedLoading: true,
+    }).addTo(map);
     mapRef.current = map;
     map.setView(city?.center ?? [4.6, -74.08], city?.zoom ?? 11);
     return () => { map.remove(); mapRef.current = null; };
