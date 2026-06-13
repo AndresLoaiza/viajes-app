@@ -11,6 +11,7 @@ import LugaresModule from './modules/lugares/LugaresModule';
 import LogisticaModule from './modules/logistica/LogisticaModule';
 import GaleriaModule from './modules/galeria/GaleriaModule';
 import MapaModule from './modules/mapa/MapaModule';
+import PendientesModule from './modules/pendientes/PendientesModule';
 import { getStoredIdentity } from './lib/identity';
 import type { TravelerId, TripConfig, ModuleId } from './types/trip';
 
@@ -42,7 +43,8 @@ export default function App() {
             return <GaleriaModule trip={trip} identity={identity} />;
           case 'mapa':
             return <MapaModule trip={trip} identity={identity} />;
-          // pendientes: Plan 3
+          case 'pendientes':
+            return <PendientesModule trip={trip} identity={identity} />;
           default:
             return (
               <div className="max-w-xl mx-auto px-5 py-16 text-center text-gray-400">

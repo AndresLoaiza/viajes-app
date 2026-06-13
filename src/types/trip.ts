@@ -103,6 +103,24 @@ export interface Photo {
   created_at: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  trip_id: string;
+  text: string;
+  done: boolean;
+  category: string | null;   // sección (Equipaje/Trámites/Compras/Otros)
+  created_by: TravelerId;
+  created_at: string;
+}
+
+export interface Note {
+  id: string;
+  trip_id: string;
+  body: string;
+  created_by: TravelerId;
+  created_at: string;
+}
+
 export interface TripPlaceSelection {
   id: string;
   trip_id: string;
