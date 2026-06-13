@@ -58,6 +58,8 @@ export interface CityConfig {
   categories: Category[];
   places: Place[];
   theme: CityTheme;
+  center?: [number, number];  // [lat, lng] centro del mapa (fallback si no hay pines)
+  zoom?: number;              // zoom inicial del mapa
 }
 
 export interface PlaceSelection {

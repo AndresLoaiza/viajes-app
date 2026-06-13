@@ -71,6 +71,8 @@ export interface Hotel {
   check_out: string;  // 'YYYY-MM-DD'
   confirmation: string | null;
   note: string | null;
+  lat: number | null;   // geocodificado de address
+  lon: number | null;
   created_by: TravelerId;
   created_at: string;
 }

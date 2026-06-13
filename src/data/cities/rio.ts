@@ -359,6 +359,8 @@ const rio: CityConfig = {
     accentColor: '#002776',
     bgPattern: asset('pattern.png'),
   },
+  center: [-22.9711, -43.1822],
+  zoom: 12,
 };
 
 export default rio;

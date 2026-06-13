@@ -10,6 +10,6 @@ export const bogota: TripConfig = {
   endDate: '2026-04-05',
   days: [],
   cities: [],
-  modules: ['galeria'],
+  modules: ['galeria', 'mapa'],
   theme: { primary: '#FCD116', accent: '#003893', bg: '#FFFDF5' },
 };

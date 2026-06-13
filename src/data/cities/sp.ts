@@ -392,6 +392,8 @@ const sp: CityConfig = {
     accentColor: '#002776',
     bgPattern: asset('pattern.png'),
   },
+  center: [-23.5558, -46.6396],
+  zoom: 12,
 };
 
 // Adjunta obras/elementos destacados a museos y lugares culturales.

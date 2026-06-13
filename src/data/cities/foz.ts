@@ -158,6 +158,8 @@ const foz: CityConfig = {
     secondaryColor: '#2B7A9E',
     accentColor: '#F6AD55',
   },
+  center: [-25.55, -54.55],
+  zoom: 11,
 };
 
 export default foz;
