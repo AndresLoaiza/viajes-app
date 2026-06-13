@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Check, Copy, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, ChevronDown, Copy, Plus } from 'lucide-react';
 import { splitUrls } from '../../lib/logistica';
 
 export const inputCls =
@@ -14,21 +15,83 @@ export function Field({ id, label, children }: { id: string; label: string; chil
   );
 }
 
-export function SectionHeader({ icon, title, count, onAdd }: {
-  icon: ReactNode; title: string; count: number; onAdd: () => void;
+/** Categoría plegable. El header alterna abrir/cerrar; el + agrega (y abre). */
+export function Accordion({ icon, title, count, open, onToggle, onAdd, children }: {
+  icon: ReactNode; title: string; count: number;
+  open: boolean; onToggle: () => void; onAdd: () => void; children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mt-8 first:mt-0">
-      <h2 className="font-display font-bold text-xl text-gray-800 flex items-center gap-2">
-        {icon} {title}
-        {count > 0 && <span className="text-sm font-sans font-semibold text-gray-400">({count})</span>}
-      </h2>
+    <section className="mt-3 first:mt-0" aria-label={title}>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex-1 min-h-12 flex items-center gap-2 cursor-pointer text-left"
+        >
+          <ChevronDown
+            className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+          {icon}
+          <span className="font-display font-bold text-lg text-gray-800">{title}</span>
+          {count > 0 && <span className="text-sm font-semibold text-gray-400">({count})</span>}
+        </button>
+        <button
+          onClick={onAdd}
+          aria-label={`Agregar a ${title}`}
+          className="min-w-11 min-h-11 flex items-center justify-center rounded-xl text-brasil-green cursor-pointer transition-colors duration-200 hover:bg-brasil-green/10"
+        >
+          <Plus className="w-5 h-5" aria-hidden />
+        </button>
+      </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="pt-1 pb-2 space-y-2">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+/** Contenedor del formulario inline (mismo lugar de la card, sin generar otra abajo). */
+export function EditCard({ children }: { children: ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      className="rounded-2xl bg-white border-2 border-brasil-green p-4 space-y-3"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** Botones Guardar / Cancelar del formulario inline. */
+export function FormActions({ onCancel, onSave, saving, valid, isEdit }: {
+  onCancel: () => void; onSave: () => void; saving: boolean; valid: boolean; isEdit: boolean;
+}) {
+  return (
+    <div className="flex gap-2 pt-1">
       <button
-        onClick={onAdd}
-        aria-label={`Agregar a ${title}`}
-        className="min-w-11 min-h-11 flex items-center justify-center rounded-xl text-brasil-green cursor-pointer transition-colors duration-200 hover:bg-brasil-green/10"
+        onClick={onCancel}
+        className="min-h-11 px-4 rounded-xl font-display font-bold text-gray-500 cursor-pointer transition-colors duration-200 hover:bg-sand/60"
       >
-        <Plus className="w-5 h-5" aria-hidden />
+        Cancelar
+      </button>
+      <button
+        onClick={onSave}
+        disabled={!valid || saving}
+        className="flex-1 min-h-11 rounded-xl font-display font-bold text-white bg-brasil-green disabled:opacity-50 cursor-pointer transition-opacity duration-200 hover:opacity-90"
+      >
+        {saving ? 'Guardando…' : isEdit ? 'Guardar' : 'Agregar'}
       </button>
     </div>
   );

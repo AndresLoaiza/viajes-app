@@ -6,7 +6,7 @@ import { useTable } from '../../lib/realtime';
 import { formatShortEs, isUnpaid } from '../../lib/logistica';
 import type { Ticket, TravelerId, TripConfig } from '../../types/trip';
 import {
-  EmptyHint, ErrorAlert, Field, inputCls, NoteText, SectionHeader, UnpaidBadge,
+  Accordion, EditCard, EmptyHint, ErrorAlert, Field, FormActions, inputCls, NoteText, UnpaidBadge,
 } from './shared';
 
 const EMPTY_FORM = { title: '', date: '', time: '', note: '' };
@@ -19,6 +19,7 @@ export default function BoletasSection({ trip, identity }: {
   identity: TravelerId;
 }) {
   const { rows, loading, apply } = useTable<Ticket>('tickets', trip.id);
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +39,7 @@ export default function BoletasSection({ trip, identity }: {
     setForm(EMPTY_FORM);
     setEditingId(null);
     setShowForm(true);
+    setOpen(true);
     setErrMsg('');
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -46,8 +48,15 @@ export default function BoletasSection({ trip, identity }: {
     setForm({ title: t.title, date: t.date ?? '', time: t.time ?? '', note: t.note ?? '' });
     setEditingId(t.id);
     setShowForm(true);
+    setOpen(true);
     setErrMsg('');
     if (fileRef.current) fileRef.current.value = '';
+  }
+
+  function cancel() {
+    setShowForm(false);
+    setEditingId(null);
+    setErrMsg('');
   }
 
   async function save() {
@@ -93,6 +102,7 @@ export default function BoletasSection({ trip, identity }: {
     }
     if (data) apply({ eventType: editingId ? 'UPDATE' : 'INSERT', new: data, old: {} });
     setShowForm(false);
+    setEditingId(null);
   }
 
   async function remove(t: Ticket) {
@@ -106,110 +116,100 @@ export default function BoletasSection({ trip, identity }: {
     if (t.file_path) await supabase.storage.from('docs').remove([t.file_path]);
   }
 
-  return (
-    <section aria-label="Boletas">
-      <SectionHeader icon={<TicketIcon className="w-5 h-5 text-brasil-yellow" aria-hidden style={{ filter: 'brightness(0.8)' }} />} title="Boletas" count={tickets.length} onAdd={openNew} />
-      <ErrorAlert msg={errMsg} />
+  function renderForm() {
+    return (
+      <EditCard>
+        <Field id="tk-title" label="Título *">
+          <input id="tk-title" type="text" value={form.title} onChange={set('title')} placeholder="Entrada, tour, show…" className={inputCls} />
+        </Field>
+        <div className="flex gap-2">
+          <Field id="tk-date" label="Fecha">
+            <input id="tk-date" type="date" value={form.date} onChange={set('date')} className={inputCls} />
+          </Field>
+          <Field id="tk-time" label="Hora">
+            <input id="tk-time" type="time" value={form.time} onChange={set('time')} className={inputCls} />
+          </Field>
+        </div>
+        <Field id="tk-note" label="Nota">
+          <input id="tk-note" type="text" value={form.note} onChange={set('note')} placeholder="Reserva, vouchers, pago…" className={inputCls} />
+        </Field>
+        <Field id="tk-file" label={editingId ? 'Reemplazar archivo (PDF/imagen)' : 'Archivo (PDF/imagen)'}>
+          <input id="tk-file" ref={fileRef} type="file" accept="application/pdf,image/*"
+            className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-xl file:border-0 file:bg-brasil-green/10 file:text-brasil-green file:font-bold file:px-3 file:py-2 file:cursor-pointer" />
+        </Field>
+        <FormActions onCancel={cancel} onSave={save} saving={saving} valid={!!valid} isEdit={!!editingId} />
+      </EditCard>
+    );
+  }
 
-      <div className="mt-3 space-y-2">
+  return (
+    <>
+      <Accordion
+        icon={<TicketIcon className="w-5 h-5 text-brasil-yellow" aria-hidden style={{ filter: 'brightness(0.8)' }} />}
+        title="Experiencias" count={tickets.length}
+        open={open} onToggle={() => setOpen((o) => !o)} onAdd={openNew}
+      >
+        <ErrorAlert msg={errMsg} />
+        {showForm && !editingId && renderForm()}
         {loading && <p className="text-sm text-gray-400">Cargando…</p>}
-        {!loading && tickets.length === 0 && (
-          <EmptyHint>Sin boletas aún. Toca + para agregar la primera.</EmptyHint>
+        {!loading && tickets.length === 0 && !showForm && (
+          <EmptyHint>Sin experiencias aún. Toca + para agregar la primera.</EmptyHint>
         )}
         <AnimatePresence initial={false}>
-          {tickets.map((t) => (
-            <motion.div
-              key={t.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              className="rounded-2xl bg-white border border-sand-dark p-4"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-display font-bold text-gray-800">{t.title}</p>
-                {isUnpaid(t.note) && <UnpaidBadge />}
-              </div>
-              {(t.date || t.time) && (
-                <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 mt-1">
-                  <CalendarDays className="w-4 h-4 text-gray-400" aria-hidden />
-                  {t.date ? formatShortEs(t.date) : ''}{t.time ? ` · ${t.time}` : ''}
-                </p>
-              )}
-              {t.note && <div className="mt-2"><NoteText text={t.note} /></div>}
-              <div className="flex items-center justify-between mt-2">
-                {t.file_path ? (
-                  // PDF → pestaña nueva (visor nativo; iframe no es confiable en
-                  // móvil). Imagen → modal integrado.
-                  t.file_path.toLowerCase().endsWith('.pdf') ? (
-                    <a href={docUrl(t.file_path)} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-brasil-green/10 text-brasil-green font-bold text-sm px-3 py-2 transition-colors duration-200 hover:bg-brasil-green/20">
-                      <FileText className="w-4 h-4" aria-hidden /> Ver boleta
-                    </a>
-                  ) : (
-                    <button onClick={() => setViewer(t)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-brasil-green/10 text-brasil-green font-bold text-sm px-3 py-2 cursor-pointer transition-colors duration-200 hover:bg-brasil-green/20">
-                      <FileText className="w-4 h-4" aria-hidden /> Ver boleta
-                    </button>
-                  )
-                ) : <span />}
-                <div className="flex gap-1">
-                  <button onClick={() => openEdit(t)} aria-label={`Editar ${t.title}`}
-                    className="min-w-11 min-h-11 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200">
-                    <Pencil className="w-4 h-4" aria-hidden />
-                  </button>
-                  <button onClick={() => remove(t)} aria-label={`Borrar ${t.title}`}
-                    className="min-w-11 min-h-11 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200">
-                    <Trash2 className="w-4 h-4" aria-hidden />
-                  </button>
+          {tickets.map((t) =>
+            editingId === t.id ? (
+              <div key={t.id}>{renderForm()}</div>
+            ) : (
+              <motion.div
+                key={t.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                className="rounded-2xl bg-white border border-sand-dark p-4"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-display font-bold text-gray-800">{t.title}</p>
+                  {isUnpaid(t.note) && <UnpaidBadge />}
                 </div>
-              </div>
-            </motion.div>
-          ))}
+                {(t.date || t.time) && (
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 mt-1">
+                    <CalendarDays className="w-4 h-4 text-gray-400" aria-hidden />
+                    {t.date ? formatShortEs(t.date) : ''}{t.time ? ` · ${t.time}` : ''}
+                  </p>
+                )}
+                {t.note && <div className="mt-2"><NoteText text={t.note} /></div>}
+                <div className="flex items-center justify-between mt-2">
+                  {t.file_path ? (
+                    // PDF → pestaña nueva (visor nativo; iframe no es confiable en
+                    // móvil). Imagen → modal integrado.
+                    t.file_path.toLowerCase().endsWith('.pdf') ? (
+                      <a href={docUrl(t.file_path)} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-brasil-green/10 text-brasil-green font-bold text-sm px-3 py-2 transition-colors duration-200 hover:bg-brasil-green/20">
+                        <FileText className="w-4 h-4" aria-hidden /> Ver boleta
+                      </a>
+                    ) : (
+                      <button onClick={() => setViewer(t)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-brasil-green/10 text-brasil-green font-bold text-sm px-3 py-2 cursor-pointer transition-colors duration-200 hover:bg-brasil-green/20">
+                        <FileText className="w-4 h-4" aria-hidden /> Ver boleta
+                      </button>
+                    )
+                  ) : <span />}
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(t)} aria-label={`Editar ${t.title}`}
+                      className="min-w-11 min-h-11 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200">
+                      <Pencil className="w-4 h-4" aria-hidden />
+                    </button>
+                    <button onClick={() => remove(t)} aria-label={`Borrar ${t.title}`}
+                      className="min-w-11 min-h-11 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200">
+                      <Trash2 className="w-4 h-4" aria-hidden />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ),
+          )}
         </AnimatePresence>
-      </div>
-
-      <AnimatePresence>
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 rounded-2xl bg-white border-2 border-brasil-green p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="font-display font-bold text-gray-800">{editingId ? 'Editar boleta' : 'Nueva boleta'}</p>
-                <button onClick={() => setShowForm(false)} aria-label="Cerrar formulario"
-                  className="min-w-11 min-h-11 -m-2 flex items-center justify-center text-gray-400 cursor-pointer">
-                  <X className="w-4 h-4" aria-hidden />
-                </button>
-              </div>
-              <Field id="tk-title" label="Título *">
-                <input id="tk-title" type="text" value={form.title} onChange={set('title')} placeholder="Entrada, tour, show…" className={inputCls} />
-              </Field>
-              <div className="flex gap-2">
-                <Field id="tk-date" label="Fecha">
-                  <input id="tk-date" type="date" value={form.date} onChange={set('date')} className={inputCls} />
-                </Field>
-                <Field id="tk-time" label="Hora">
-                  <input id="tk-time" type="time" value={form.time} onChange={set('time')} className={inputCls} />
-                </Field>
-              </div>
-              <Field id="tk-note" label="Nota">
-                <input id="tk-note" type="text" value={form.note} onChange={set('note')} placeholder="Reserva, vouchers, pago…" className={inputCls} />
-              </Field>
-              <Field id="tk-file" label={editingId ? 'Reemplazar archivo (PDF/imagen)' : 'Archivo (PDF/imagen)'}>
-                <input id="tk-file" ref={fileRef} type="file" accept="application/pdf,image/*"
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-xl file:border-0 file:bg-brasil-green/10 file:text-brasil-green file:font-bold file:px-3 file:py-2 file:cursor-pointer" />
-              </Field>
-              <button onClick={save} disabled={!valid || saving}
-                className="w-full min-h-11 rounded-xl font-display font-bold text-white bg-brasil-green disabled:opacity-50 cursor-pointer transition-opacity duration-200 hover:opacity-90">
-                {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Agregar boleta'}
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </Accordion>
 
       {/* Visor de boleta (solo imágenes; PDFs abren en pestaña nueva) */}
       <AnimatePresence>
@@ -243,6 +243,6 @@ export default function BoletasSection({ trip, identity }: {
           </motion.div>
         )}
       </AnimatePresence>
-    </section>
+    </>
   );
 }

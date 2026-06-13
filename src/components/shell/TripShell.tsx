@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Home, CalendarDays, Plane, MapPin, Images, Map, ListChecks,
+  ArrowLeft, Home, CalendarDays, Luggage, MapPin, Images, Map, ListChecks,
   type LucideIcon,
 } from 'lucide-react';
 import type { TripConfig, ModuleId } from '../../types/trip';
@@ -9,7 +9,7 @@ import type { TripConfig, ModuleId } from '../../types/trip';
 const MODULE_META: Record<ModuleId, { label: string; Icon: LucideIcon }> = {
   inicio: { label: 'Inicio', Icon: Home },
   itinerario: { label: 'Días', Icon: CalendarDays },
-  logistica: { label: 'Vuelos', Icon: Plane },
+  logistica: { label: 'Plan', Icon: Luggage },
   lugares: { label: 'Lugares', Icon: MapPin },
   galeria: { label: 'Fotos', Icon: Images },
   mapa: { label: 'Mapa', Icon: Map },

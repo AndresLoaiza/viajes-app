@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoveRight, Pencil, Plane, Trash2, X } from 'lucide-react';
+import { MoveRight, Pencil, Plane, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { tsDate, tsTime, formatShortEs } from '../../lib/logistica';
 import type { Flight, TravelerId, TripConfig } from '../../types/trip';
 import {
-  ConfirmChip, EmptyHint, ErrorAlert, Field, inputCls, NoteText, SectionHeader,
+  Accordion, ConfirmChip, EditCard, EmptyHint, ErrorAlert, Field, FormActions, inputCls, NoteText,
 } from './shared';
 
 const EMPTY_FORM = {
@@ -19,6 +19,7 @@ export default function VuelosSection({ trip, identity }: {
   identity: TravelerId;
 }) {
   const { rows, loading, apply } = useTable<Flight>('flights', trip.id);
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -36,6 +37,7 @@ export default function VuelosSection({ trip, identity }: {
     setForm(EMPTY_FORM);
     setEditingId(null);
     setShowForm(true);
+    setOpen(true);
     setErrMsg('');
   }
 
@@ -48,6 +50,13 @@ export default function VuelosSection({ trip, identity }: {
     });
     setEditingId(f.id);
     setShowForm(true);
+    setOpen(true);
+    setErrMsg('');
+  }
+
+  function cancel() {
+    setShowForm(false);
+    setEditingId(null);
     setErrMsg('');
   }
 
@@ -76,6 +85,7 @@ export default function VuelosSection({ trip, identity }: {
     }
     if (data) apply({ eventType: editingId ? 'UPDATE' : 'INSERT', new: data, old: {} });
     setShowForm(false);
+    setEditingId(null);
   }
 
   async function remove(id: string) {
@@ -88,18 +98,61 @@ export default function VuelosSection({ trip, identity }: {
     apply({ eventType: 'DELETE', new: {}, old: { id } });
   }
 
-  return (
-    <section aria-label="Vuelos">
-      <SectionHeader icon={<Plane className="w-5 h-5 text-brasil-blue" aria-hidden />} title="Vuelos" count={flights.length} onAdd={openNew} />
-      <ErrorAlert msg={errMsg} />
+  function renderForm() {
+    return (
+      <EditCard>
+        <div className="flex gap-2">
+          <Field id="fl-from" label="Origen *">
+            <input id="fl-from" type="text" value={form.from_city} onChange={set('from_city')} className={inputCls} />
+          </Field>
+          <Field id="fl-to" label="Destino *">
+            <input id="fl-to" type="text" value={form.to_city} onChange={set('to_city')} className={inputCls} />
+          </Field>
+        </div>
+        <div className="flex gap-2">
+          <Field id="fl-date" label="Fecha *">
+            <input id="fl-date" type="date" value={form.date} onChange={set('date')} className={inputCls} />
+          </Field>
+          <Field id="fl-dep" label="Sale *">
+            <input id="fl-dep" type="time" value={form.dep} onChange={set('dep')} className={inputCls} />
+          </Field>
+          <Field id="fl-arr" label="Llega">
+            <input id="fl-arr" type="time" value={form.arr} onChange={set('arr')} className={inputCls} />
+          </Field>
+        </div>
+        <div className="flex gap-2">
+          <Field id="fl-air" label="Aerolínea *">
+            <input id="fl-air" type="text" value={form.airline} onChange={set('airline')} placeholder="GOL, LATAM…" className={inputCls} />
+          </Field>
+          <Field id="fl-conf" label="Confirmación">
+            <input id="fl-conf" type="text" value={form.confirmation} onChange={set('confirmation')} className={inputCls} />
+          </Field>
+        </div>
+        <Field id="fl-note" label="Nota">
+          <input id="fl-note" type="text" value={form.note} onChange={set('note')} placeholder="Precio, equipaje, plataforma…" className={inputCls} />
+        </Field>
+        <FormActions onCancel={cancel} onSave={save} saving={saving} valid={!!valid} isEdit={!!editingId} />
+      </EditCard>
+    );
+  }
 
-      <div className="mt-3 space-y-2">
-        {loading && <p className="text-sm text-gray-400">Cargando…</p>}
-        {!loading && flights.length === 0 && (
-          <EmptyHint>Sin vuelos aún. Toca + para agregar el primero.</EmptyHint>
-        )}
-        <AnimatePresence initial={false}>
-          {flights.map((f) => (
+  return (
+    <Accordion
+      icon={<Plane className="w-5 h-5 text-brasil-blue" aria-hidden />}
+      title="Vuelos" count={flights.length}
+      open={open} onToggle={() => setOpen((o) => !o)} onAdd={openNew}
+    >
+      <ErrorAlert msg={errMsg} />
+      {showForm && !editingId && renderForm()}
+      {loading && <p className="text-sm text-gray-400">Cargando…</p>}
+      {!loading && flights.length === 0 && !showForm && (
+        <EmptyHint>Sin vuelos aún. Toca + para agregar el primero.</EmptyHint>
+      )}
+      <AnimatePresence initial={false}>
+        {flights.map((f) =>
+          editingId === f.id ? (
+            <div key={f.id}>{renderForm()}</div>
+          ) : (
             <motion.div
               key={f.id}
               initial={{ opacity: 0, y: 8 }}
@@ -139,64 +192,9 @@ export default function VuelosSection({ trip, identity }: {
                 </button>
               </div>
             </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      <AnimatePresence>
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 rounded-2xl bg-white border-2 border-brasil-green p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="font-display font-bold text-gray-800">{editingId ? 'Editar vuelo' : 'Nuevo vuelo'}</p>
-                <button onClick={() => setShowForm(false)} aria-label="Cerrar formulario"
-                  className="min-w-11 min-h-11 -m-2 flex items-center justify-center text-gray-400 cursor-pointer">
-                  <X className="w-4 h-4" aria-hidden />
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <Field id="fl-from" label="Origen *">
-                  <input id="fl-from" type="text" value={form.from_city} onChange={set('from_city')} className={inputCls} />
-                </Field>
-                <Field id="fl-to" label="Destino *">
-                  <input id="fl-to" type="text" value={form.to_city} onChange={set('to_city')} className={inputCls} />
-                </Field>
-              </div>
-              <div className="flex gap-2">
-                <Field id="fl-date" label="Fecha *">
-                  <input id="fl-date" type="date" value={form.date} onChange={set('date')} className={inputCls} />
-                </Field>
-                <Field id="fl-dep" label="Sale *">
-                  <input id="fl-dep" type="time" value={form.dep} onChange={set('dep')} className={inputCls} />
-                </Field>
-                <Field id="fl-arr" label="Llega">
-                  <input id="fl-arr" type="time" value={form.arr} onChange={set('arr')} className={inputCls} />
-                </Field>
-              </div>
-              <div className="flex gap-2">
-                <Field id="fl-air" label="Aerolínea *">
-                  <input id="fl-air" type="text" value={form.airline} onChange={set('airline')} placeholder="GOL, LATAM…" className={inputCls} />
-                </Field>
-                <Field id="fl-conf" label="Confirmación">
-                  <input id="fl-conf" type="text" value={form.confirmation} onChange={set('confirmation')} className={inputCls} />
-                </Field>
-              </div>
-              <Field id="fl-note" label="Nota">
-                <input id="fl-note" type="text" value={form.note} onChange={set('note')} placeholder="Precio, equipaje, plataforma…" className={inputCls} />
-              </Field>
-              <button onClick={save} disabled={!valid || saving}
-                className="w-full min-h-11 rounded-xl font-display font-bold text-white bg-brasil-green disabled:opacity-50 cursor-pointer transition-opacity duration-200 hover:opacity-90">
-                {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Agregar vuelo'}
-              </button>
-            </div>
-          </motion.div>
+          ),
         )}
       </AnimatePresence>
-    </section>
+    </Accordion>
   );
 }
