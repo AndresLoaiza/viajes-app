@@ -93,7 +93,10 @@ export interface Photo {
   file_path: string;        // ruta en bucket photos
   taken_on: string | null;  // 'YYYY-MM-DD' (aprox: lastModified del archivo)
   city_id: string | null;
-  caption: string | null;
+  caption: string | null;        // nota libre del usuario
+  lat: number | null;            // GPS EXIF
+  lon: number | null;
+  place: string | null;          // barrio/lugar (reverse-geocode de lat/lon)
   uploaded_by: TravelerId;
   created_at: string;
 }

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Images, Loader2, Trash2, X } from 'lucide-react';
+import { Camera, Images, Loader2, MapPin, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { formatDayEs } from '../../lib/dates';
@@ -173,10 +173,28 @@ export default function GaleriaModule({ trip, identity }: {
             aria-label="Foto ampliada"
           >
             <div className="flex items-center justify-between px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-              <p className="text-white/80 text-sm font-semibold">
-                {travelerName(lightbox.uploaded_by)}
-                {lightbox.taken_on && <span className="text-white/50"> · {formatDayEs(lightbox.taken_on)}</span>}
-              </p>
+              <div className="min-w-0">
+                <p className="text-white/80 text-sm font-semibold">
+                  {travelerName(lightbox.uploaded_by)}
+                  {lightbox.taken_on && <span className="text-white/50"> · {formatDayEs(lightbox.taken_on)}</span>}
+                </p>
+                {lightbox.place && (
+                  lightbox.lat != null && lightbox.lon != null ? (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${lightbox.lat},${lightbox.lon}`}
+                      target="_blank" rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-0.5 inline-flex items-center gap-1 text-white/60 text-xs hover:text-white transition-colors duration-200"
+                    >
+                      <MapPin className="w-3.5 h-3.5" aria-hidden /> {lightbox.place}
+                    </a>
+                  ) : (
+                    <p className="mt-0.5 inline-flex items-center gap-1 text-white/60 text-xs">
+                      <MapPin className="w-3.5 h-3.5" aria-hidden /> {lightbox.place}
+                    </p>
+                  )
+                )}
+              </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => removePhoto(lightbox)} aria-label="Borrar foto"
                   className="min-w-11 min-h-11 flex items-center justify-center text-white/60 hover:text-red-400 cursor-pointer transition-colors duration-200">

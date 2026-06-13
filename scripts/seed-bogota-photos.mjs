@@ -57,11 +57,31 @@ if (existErr) { console.error('Error DB:', existErr.message); process.exit(1); }
 const existingPaths = new Set((existing ?? []).map((r) => r.file_path));
 console.log(`${existingPaths.size} fotos ya en DB para ${TRIP}`);
 
-// ── mtime → 'YYYY-MM-DD' ────────────────────────────────────────────────────
+// ── fecha de captura: EXIF DateTimeOriginal, fallback a mtime ────────────────
+// El mtime es la fecha de extracción del zip (hoy), NO cuándo se tomó la foto.
+// pillow_heif lee HEIC; cae a mtime si la foto no trae EXIF.
 function mtimeDate(filepath) {
   const d = new Date(statSync(filepath).mtime.getTime());
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function exifDate(filepath) {
+  const py = [
+    'import sys,pillow_heif; pillow_heif.register_heif_opener()',
+    'from PIL import Image',
+    'ex=Image.open(sys.argv[1]).getexif()',
+    'dt=ex.get_ifd(0x8769).get(0x9003) or ex.get(306)',
+    'print(dt.split(" ")[0].replace(":","-") if dt else "")',
+  ].join('\n');
+  try {
+    const out = execFileSync('python', ['-c', py, filepath.replace(/\\/g, '/')], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString().trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(out) ? out : mtimeDate(filepath);
+  } catch {
+    return mtimeDate(filepath);
+  }
 }
 
 // ── ffmpeg: convierte a JPEG y escala a max 1600px ─────────────────────────
@@ -126,10 +146,11 @@ for (const filename of files) {
   }
 
   // DB insert
+  const takenOn = exifDate(inputPath);
   const { error: dbErr } = await supabase.from('photos').insert({
     trip_id: TRIP,
     file_path: remotePath,
-    taken_on: mtimeDate(inputPath),
+    taken_on: takenOn,
     city_id: null,
     uploaded_by: UPLOADER,
   });
@@ -140,7 +161,7 @@ for (const filename of files) {
     continue;
   }
 
-  console.log(`✓ ${mtimeDate(inputPath)}`);
+  console.log(`✓ ${takenOn}`);
   uploaded++;
 }
 
