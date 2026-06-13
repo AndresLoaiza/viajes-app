@@ -84,20 +84,14 @@ function exifDate(filepath) {
   }
 }
 
-// ── ffmpeg: convierte a JPEG y escala a max 1600px ─────────────────────────
-// filter_complex evita el conflicto "simple vs complex filtergraph" de HEIC multi-stream.
-// force_original_aspect_ratio=decrease: escala proporcionalmente, nunca upscale.
+// ── Convierte a JPEG (lado mayor <= 1600px) vía pillow_heif ────────────────
+// NO usar ffmpeg: decodifica solo UN tile de los HEIC en mosaico del iPhone 15
+// (sale un recorte 1600x1600 en vez de la foto completa). heic_to_jpeg.py
+// reconstruye el grid completo y respeta la orientación EXIF.
 function toJpeg(inputPath) {
-  const outPath = `/tmp/seed-${randomUUID()}.jpg`;
-  const inFwd = inputPath.replace(/\\/g, '/');
-  execFileSync('ffmpeg', [
-    '-y', '-i', inFwd,
-    '-filter_complex', '[0:v:0]scale=1600:1600:force_original_aspect_ratio=decrease[out]',
-    '-map', '[out]',
-    '-frames:v', '1',
-    '-q:v', '4',  // JPEG quality ~85%
-    outPath,
-  ], { stdio: 'pipe' });
+  const outPath = join(tmpdir(), `seed-${randomUUID()}.jpg`).replace(/\\/g, '/');
+  const script = new URL('./heic_to_jpeg.py', import.meta.url).pathname.replace(/^\//, '');
+  execFileSync('python', [script, inputPath.replace(/\\/g, '/'), outPath], { stdio: 'pipe' });
   const buf = readFileSync(outPath);
   unlinkSync(outPath);
   return buf;
