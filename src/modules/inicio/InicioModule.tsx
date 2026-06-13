@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, CalendarDays, Sparkles } from 'lucide-react';
 import { useTable } from '../../lib/realtime';
 import { daysUntil, formatDayEs, isToday } from '../../lib/dates';
+import WeatherSection from './WeatherSection';
 import type { TripConfig, ItineraryItem } from '../../types/trip';
 
 /** Inicio: countdown hero + plan de hoy (durante el viaje). */
@@ -75,6 +76,8 @@ export default function InicioModule({ trip }: { trip: TripConfig }) {
           )}
         </motion.section>
       )}
+
+      {!terminado && <WeatherSection trip={trip} />}
 
       {terminado && (
         <motion.section
