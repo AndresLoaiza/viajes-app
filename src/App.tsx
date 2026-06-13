@@ -12,6 +12,7 @@ import LogisticaModule from './modules/logistica/LogisticaModule';
 import GaleriaModule from './modules/galeria/GaleriaModule';
 import MapaModule from './modules/mapa/MapaModule';
 import PendientesModule from './modules/pendientes/PendientesModule';
+import InstallPrompt from './components/InstallPrompt';
 import { getStoredIdentity } from './lib/identity';
 import type { TravelerId, TripConfig, ModuleId } from './types/trip';
 
@@ -58,5 +59,10 @@ export default function App() {
   );
 
   // reducedMotion="user" → framer-motion respeta prefers-reduced-motion
-  return <MotionConfig reducedMotion="user">{content}</MotionConfig>;
+  return (
+    <MotionConfig reducedMotion="user">
+      {content}
+      <InstallPrompt />
+    </MotionConfig>
+  );
 }
