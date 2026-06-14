@@ -1,19 +1,29 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, CalendarDays, Sparkles } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Sparkles, Ticket as TicketIcon } from 'lucide-react';
 import { useTable } from '../../lib/realtime';
 import { daysUntil, formatDayEs, isToday } from '../../lib/dates';
 import WeatherSection from './WeatherSection';
-import type { TripConfig, ItineraryItem } from '../../types/trip';
+import type { TripConfig, ItineraryItem, Ticket } from '../../types/trip';
 
 /** Inicio: countdown hero + plan de hoy (durante el viaje). */
 export default function InicioModule({ trip }: { trip: TripConfig }) {
   const dias = daysUntil(trip.startDate);
   const hoy = trip.days.find((d) => isToday(d.date));
   const { rows: items } = useTable<ItineraryItem>('itinerary_items', trip.id);
-  const itemsHoy = hoy
-    ? items
-        .filter((i) => i.date === hoy.date)
-        .sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99'))
+  const { rows: tickets } = useTable<Ticket>('tickets', trip.id);
+  // Planes manuales + experiencias del día, mezclados y ordenados por hora.
+  type PlanHoy =
+    | { kind: 'item'; key: string; sort: string; time: string | null; title: string; note: string | null }
+    | { kind: 'ticket'; key: string; sort: string; time: string | null; title: string; note: string | null };
+  const itemsHoy: PlanHoy[] = hoy
+    ? [
+        ...items.filter((i) => i.date === hoy.date).map((i): PlanHoy => ({
+          kind: 'item', key: i.id, sort: i.time ?? '99', time: i.time, title: i.title, note: i.note,
+        })),
+        ...tickets.filter((t) => t.date === hoy.date).map((t): PlanHoy => ({
+          kind: 'ticket', key: `tk-${t.id}`, sort: t.time ?? '99', time: t.time, title: t.title, note: t.note,
+        })),
+      ].sort((a, b) => a.sort.localeCompare(b.sort))
     : [];
   const ciudadHoy = hoy ? trip.cities.find((c) => c.id === hoy.cityId) : null;
   const terminado = daysUntil(trip.endDate) < 0;
@@ -62,12 +72,15 @@ export default function InicioModule({ trip }: { trip: TripConfig }) {
           ) : (
             <ul className="divide-y divide-sand">
               {itemsHoy.map((i) => (
-                <li key={i.id} className="py-2.5 flex items-baseline gap-3">
-                  <span className="font-mono text-sm text-brasil-green font-bold w-12 flex-shrink-0">
-                    {i.time ?? '—'}
+                <li key={i.key} className="py-2.5 flex items-baseline gap-3">
+                  <span className={`font-mono text-sm font-bold w-12 flex-shrink-0 ${i.kind === 'ticket' ? 'text-amber-700' : 'text-brasil-green'}`}>
+                    {i.time ? i.time.slice(0, 5) : '—'}
                   </span>
-                  <div>
-                    <p className="font-semibold text-gray-800">{i.title}</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-800 flex items-center gap-1.5">
+                      {i.kind === 'ticket' && <TicketIcon className="w-4 h-4 text-amber-600 flex-shrink-0" aria-hidden style={{ filter: 'brightness(0.85)' }} />}
+                      {i.title}
+                    </p>
                     {i.note && <p className="text-sm text-gray-500">{i.note}</p>}
                   </div>
                 </li>
