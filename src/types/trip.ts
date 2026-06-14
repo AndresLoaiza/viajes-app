@@ -121,6 +121,19 @@ export interface Note {
   created_at: string;
 }
 
+export interface Expense {
+  id: string;
+  trip_id: string;
+  description: string;
+  amount: number;          // en la moneda `currency`
+  currency: 'COP' | 'BRL' | 'ARS' | 'USD';
+  paid_by: TravelerId;     // quién pagó
+  category: string | null;
+  spent_on: string | null; // 'YYYY-MM-DD'
+  created_by: TravelerId;
+  created_at: string;
+}
+
 export interface TripPlaceSelection {
   id: string;
   trip_id: string;
