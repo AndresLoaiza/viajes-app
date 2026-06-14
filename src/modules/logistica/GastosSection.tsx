@@ -148,13 +148,6 @@ export default function GastosSection({ trip, identity }: {
             <span className="text-gray-600">Andrés <b className="text-gray-800">{formatMoney(summary.byPerson.andres, 'COP')}</b></span>
             <span className="text-gray-600">Melisa <b className="text-gray-800">{formatMoney(summary.byPerson.melisa, 'COP')}</b></span>
           </div>
-          {summary.settle ? (
-            <p className="mt-2 rounded-xl bg-brasil-yellow/25 text-amber-800 text-sm font-bold px-3 py-2">
-              {travelerName(summary.settle.from)} le debe a {travelerName(summary.settle.to)} {formatMoney(summary.settle.cop, 'COP')}
-            </p>
-          ) : (
-            <p className="mt-2 text-sm font-semibold text-brasil-green">Están a mano ✅</p>
-          )}
           {summary.byCategory.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {summary.byCategory.map((c) => (
