@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Plus, Trash2, X } from 'lucide-react';
+import { AlertTriangle, FileText, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { formatDayEs, isToday } from '../../lib/dates';
-import type { TripConfig, ItineraryItem, TravelerId } from '../../types/trip';
+import type { TripConfig, ItineraryItem, Ticket, TravelerId } from '../../types/trip';
+
+const docUrl = (path: string) =>
+  supabase.storage.from('docs').getPublicUrl(path).data.publicUrl;
 
 const WEEKDAY_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
@@ -22,6 +25,7 @@ export default function ItinerarioModule({ trip, identity }: {
     () => trip.days.find((d) => isToday(d.date))?.date ?? trip.days[0]?.date,
   );
   const { rows, loading, apply } = useTable<ItineraryItem>('itinerary_items', trip.id);
+  const { rows: ticketRows } = useTable<Ticket>('tickets', trip.id);
   const [showForm, setShowForm] = useState(false);
   const [fTime, setFTime] = useState('');
   const [fTitle, setFTitle] = useState('');
@@ -34,6 +38,17 @@ export default function ItinerarioModule({ trip, identity }: {
   const items = rows
     .filter((i) => i.date === activeDate)
     .sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99'));
+
+  // Experiencias (tickets) del día — se gestionan en "Plan"; aquí van read-only,
+  // mezcladas con los planes manuales y ordenadas por hora.
+  const dayTickets = ticketRows.filter((t) => t.date === activeDate);
+  type Entry =
+    | { kind: 'item'; key: string; sort: string; item: ItineraryItem }
+    | { kind: 'ticket'; key: string; sort: string; ticket: Ticket };
+  const entries: Entry[] = [
+    ...items.map((i): Entry => ({ kind: 'item', key: i.id, sort: i.time ?? '99', item: i })),
+    ...dayTickets.map((t): Entry => ({ kind: 'ticket', key: `tk-${t.id}`, sort: t.time ?? '99', ticket: t })),
+  ].sort((a, b) => a.sort.localeCompare(b.sort));
 
   async function addItem() {
     if (!fTitle.trim() || saving) return;
@@ -118,40 +133,72 @@ export default function ItinerarioModule({ trip, identity }: {
         {/* Lista de planes del día */}
         <div className="mt-4 space-y-2">
           {loading && <p className="text-sm text-gray-400">Cargando…</p>}
-          {!loading && items.length === 0 && (
+          {!loading && entries.length === 0 && (
             <div className="rounded-2xl border-2 border-dashed border-sand-dark p-6 text-center text-gray-400">
               <p className="font-semibold">Nada planeado aún</p>
               <p className="text-sm mt-0.5">Toca + para agregar el primer plan</p>
             </div>
           )}
           <AnimatePresence initial={false}>
-            {items.map((i) => (
-              <motion.div
-                key={i.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                className="rounded-2xl bg-white border border-sand-dark p-4 flex items-start gap-3"
-              >
-                <span className="font-mono text-sm text-brasil-green font-bold w-12 flex-shrink-0 pt-0.5">
-                  {i.time ? i.time.slice(0, 5) : '—'}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800">{i.title}</p>
-                  {i.note && <p className="text-sm text-gray-500">{i.note}</p>}
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    {i.created_by === 'andres' ? 'Andrés' : 'Melisa'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => removeItem(i.id)}
-                  aria-label={`Borrar ${i.title}`}
-                  className="min-w-11 min-h-11 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200"
+            {entries.map((e) =>
+              e.kind === 'item' ? (
+                <motion.div
+                  key={e.key}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  className="rounded-2xl bg-white border border-sand-dark p-4 flex items-start gap-3"
                 >
-                  <Trash2 className="w-4 h-4" aria-hidden />
-                </button>
-              </motion.div>
-            ))}
+                  <span className="font-mono text-sm text-brasil-green font-bold w-12 flex-shrink-0 pt-0.5">
+                    {e.item.time ? e.item.time.slice(0, 5) : '—'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800">{e.item.title}</p>
+                    {e.item.note && <p className="text-sm text-gray-500">{e.item.note}</p>}
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      {e.item.created_by === 'andres' ? 'Andrés' : 'Melisa'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => removeItem(e.item.id)}
+                    aria-label={`Borrar ${e.item.title}`}
+                    className="min-w-11 min-h-11 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200"
+                  >
+                    <Trash2 className="w-4 h-4" aria-hidden />
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={e.key}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  className="rounded-2xl bg-brasil-yellow/10 border border-brasil-yellow/50 p-4 flex items-start gap-3"
+                >
+                  <span className="font-mono text-sm text-amber-700 font-bold w-12 flex-shrink-0 pt-0.5">
+                    {e.ticket.time ? e.ticket.time.slice(0, 5) : '—'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <TicketIcon className="w-4 h-4 text-amber-600 flex-shrink-0" aria-hidden style={{ filter: 'brightness(0.85)' }} />
+                      <p className="font-semibold text-gray-800">{e.ticket.title}</p>
+                    </div>
+                    {e.ticket.note && <p className="text-sm text-gray-500 mt-0.5">{e.ticket.note}</p>}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700/80">Experiencia</span>
+                      {e.ticket.file_path && (
+                        <a
+                          href={docUrl(e.ticket.file_path)} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-brasil-green"
+                        >
+                          <FileText className="w-3.5 h-3.5" aria-hidden /> Ver boleta
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ),
+            )}
           </AnimatePresence>
         </div>
 
