@@ -13,6 +13,7 @@ import GaleriaModule from './modules/galeria/GaleriaModule';
 import MapaModule from './modules/mapa/MapaModule';
 import PendientesModule from './modules/pendientes/PendientesModule';
 import InstallPrompt from './components/InstallPrompt';
+import SyncIndicator from './components/SyncIndicator';
 import { getStoredIdentity } from './lib/identity';
 import type { TravelerId, TripConfig, ModuleId } from './types/trip';
 
@@ -62,6 +63,7 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       {content}
+      <SyncIndicator />
       <InstallPrompt />
     </MotionConfig>
   );

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ListChecks, StickyNote, Plus, Trash2, Check, Pencil, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
+import { mutate, uuid } from '../../lib/mutate';
 import { formatDayEs } from '../../lib/dates';
 import type { TripConfig, TravelerId, ChecklistItem, Note } from '../../types/trip';
 
@@ -85,23 +85,28 @@ function Checklist({ trip, identity, onError }: {
     const t = text.trim();
     if (!t || busy) return;
     setBusy(true); onError('');
-    const { data, error } = await supabase.from('checklist_items').insert({
-      trip_id: trip.id, text: t, done: false, category: cat, created_by: identity,
-    }).select().single();
+    const row = {
+      id: uuid(), trip_id: trip.id, text: t, done: false, category: cat,
+      created_by: identity, created_at: new Date().toISOString(),
+    };
+    const { data, error } = await mutate({ table: 'checklist_items', type: 'insert', row });
     setBusy(false);
-    if (error) { onError('No se pudo agregar. Revisa tu conexión.'); return; }
-    if (data) { apply({ eventType: 'INSERT', new: data, old: {} }); setText(''); }
+    if (error) { onError('No se pudo agregar.'); return; }
+    apply({ eventType: 'INSERT', new: data ?? row, old: {} });
+    setText('');
   }
 
   async function toggle(it: ChecklistItem) {
-    const { data, error } = await supabase.from('checklist_items')
-      .update({ done: !it.done }).eq('id', it.id).select().single();
+    const optimistic = { ...it, done: !it.done };
+    const { data, error } = await mutate({
+      table: 'checklist_items', type: 'update', id: it.id, patch: { done: !it.done },
+    });
     if (error) { onError('No se pudo actualizar.'); return; }
-    if (data) apply({ eventType: 'UPDATE', new: data, old: {} });
+    apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
   }
 
   async function remove(it: ChecklistItem) {
-    const { error } = await supabase.from('checklist_items').delete().eq('id', it.id);
+    const { error } = await mutate({ table: 'checklist_items', type: 'delete', id: it.id });
     if (error) { onError('No se pudo borrar.'); return; }
     apply({ eventType: 'DELETE', new: {}, old: { id: it.id } });
   }
@@ -202,25 +207,28 @@ function Notas({ trip, identity, onError }: {
     const t = body.trim();
     if (!t || busy) return;
     setBusy(true); onError('');
-    const { data, error } = await supabase.from('notes').insert({
-      trip_id: trip.id, body: t, created_by: identity,
-    }).select().single();
+    const row = {
+      id: uuid(), trip_id: trip.id, body: t, created_by: identity,
+      created_at: new Date().toISOString(),
+    };
+    const { data, error } = await mutate({ table: 'notes', type: 'insert', row });
     setBusy(false);
     if (error) { onError('No se pudo guardar la nota.'); return; }
-    if (data) { apply({ eventType: 'INSERT', new: data, old: {} }); setBody(''); }
+    apply({ eventType: 'INSERT', new: data ?? row, old: {} });
+    setBody('');
   }
 
   async function saveEdit(n: Note) {
     const t = draft.trim();
     if (!t) return;
-    const { data, error } = await supabase.from('notes')
-      .update({ body: t }).eq('id', n.id).select().single();
+    const { data, error } = await mutate({ table: 'notes', type: 'update', id: n.id, patch: { body: t } });
     if (error) { onError('No se pudo guardar.'); return; }
-    if (data) { apply({ eventType: 'UPDATE', new: data, old: {} }); setEditId(null); }
+    apply({ eventType: 'UPDATE', new: data ?? { ...n, body: t }, old: {} });
+    setEditId(null);
   }
 
   async function remove(n: Note) {
-    const { error } = await supabase.from('notes').delete().eq('id', n.id);
+    const { error } = await mutate({ table: 'notes', type: 'delete', id: n.id });
     if (error) { onError('No se pudo borrar.'); return; }
     apply({ eventType: 'DELETE', new: {}, old: { id: n.id } });
     if (editId === n.id) setEditId(null);
