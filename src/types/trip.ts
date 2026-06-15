@@ -3,7 +3,7 @@ import type { CityConfig } from './city';
 export type TravelerId = 'andres' | 'melisa';
 export type ModuleId =
   | 'inicio' | 'itinerario' | 'logistica' | 'lugares'
-  | 'galeria' | 'mapa' | 'pendientes';
+  | 'galeria' | 'mapa' | 'pendientes' | 'recuerdos';
 
 export interface TripDay {
   date: string;        // 'YYYY-MM-DD'

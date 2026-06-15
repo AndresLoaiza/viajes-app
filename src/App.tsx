@@ -21,6 +21,7 @@ const LogisticaModule = lazy(() => import('./modules/logistica/LogisticaModule')
 const GaleriaModule = lazy(() => import('./modules/galeria/GaleriaModule'));
 const MapaModule = lazy(() => import('./modules/mapa/MapaModule'));
 const PendientesModule = lazy(() => import('./modules/pendientes/PendientesModule'));
+const RecuerdosModule = lazy(() => import('./modules/recuerdos/RecuerdosModule'));
 
 function ModuleLoading() {
   return (
@@ -63,6 +64,8 @@ export default function App() {
                   return <MapaModule trip={trip} identity={identity} />;
                 case 'pendientes':
                   return <PendientesModule trip={trip} identity={identity} />;
+                case 'recuerdos':
+                  return <RecuerdosModule trip={trip} />;
                 default:
                   return (
                     <div className="max-w-xl mx-auto px-5 py-16 text-center text-gray-400">

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Home, CalendarDays, Luggage, MapPin, Images, Map, ListChecks,
+  ArrowLeft, Home, CalendarDays, Luggage, MapPin, Images, Map, ListChecks, Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 import type { TripConfig, ModuleId } from '../../types/trip';
@@ -14,6 +14,7 @@ const MODULE_META: Record<ModuleId, { label: string; Icon: LucideIcon }> = {
   galeria: { label: 'Fotos', Icon: Images },
   mapa: { label: 'Mapa', Icon: Map },
   pendientes: { label: 'Listas', Icon: ListChecks },
+  recuerdos: { label: 'Recuerdos', Icon: Sparkles },
 };
 
 /** Shell de un viaje: header con volver al hub + nav inferior por módulos. */
