@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pencil, PiggyBank, Trash2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
+import { mutate, uuid } from '../../lib/mutate';
 import { formatShortEs } from '../../lib/logistica';
 import { CURRENCIES, fetchRates, formatMoney, type Currency, type Rates } from '../../lib/currency';
 import { summarize } from '../../lib/expenses';
@@ -76,19 +76,26 @@ export default function GastosSection({ trip, identity }: {
       category: form.category,
       spent_on: form.spent_on || null,
     };
-    const q = editingId
-      ? supabase.from('expenses').update(payload).eq('id', editingId).select().single()
-      : supabase.from('expenses').insert({ ...payload, trip_id: trip.id, created_by: identity }).select().single();
-    const { data, error } = await q;
-    setSaving(false);
-    if (error) { setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.'); return; }
-    if (data) apply({ eventType: editingId ? 'UPDATE' : 'INSERT', new: data, old: {} });
+    if (editingId) {
+      const orig = rows.find((r) => r.id === editingId);
+      const optimistic = { ...orig, ...payload, id: editingId };
+      const { data, error } = await mutate({ table: 'expenses', type: 'update', id: editingId, patch: payload });
+      setSaving(false);
+      if (error) { setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.'); return; }
+      apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
+    } else {
+      const row = { id: uuid(), ...payload, trip_id: trip.id, created_by: identity, created_at: new Date().toISOString() };
+      const { data, error } = await mutate({ table: 'expenses', type: 'insert', row });
+      setSaving(false);
+      if (error) { setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.'); return; }
+      apply({ eventType: 'INSERT', new: data ?? row, old: {} });
+    }
     setShowForm(false); setEditingId(null);
   }
 
   async function remove(id: string) {
     if (!confirm('¿Borrar este gasto?')) return;
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    const { error } = await mutate({ table: 'expenses', type: 'delete', id });
     if (error) { setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.'); return; }
     apply({ eventType: 'DELETE', new: {}, old: { id } });
   }

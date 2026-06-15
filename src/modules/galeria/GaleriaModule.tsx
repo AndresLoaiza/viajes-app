@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Images, Loader2, MapPin, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
+import { mutate } from '../../lib/mutate';
 import { formatDayEs } from '../../lib/dates';
 import { compressImage, dateFromMs, groupByDate } from '../../lib/galeria';
 import type { Photo, TravelerId, TripConfig } from '../../types/trip';
@@ -61,31 +62,28 @@ export default function GaleriaModule({ trip, identity }: {
 
   async function removePhoto(p: Photo) {
     if (!confirm('¿Borrar esta foto para ambos?')) return;
-    const { error } = await supabase.from('photos').delete().eq('id', p.id);
+    const { error } = await mutate({ table: 'photos', type: 'delete', id: p.id });
     if (error) {
       setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.');
       return;
     }
     apply({ eventType: 'DELETE', new: {}, old: { id: p.id } });
     setLightbox(null);
-    await supabase.storage.from('photos').remove([p.file_path]);
+    if (navigator.onLine) await supabase.storage.from('photos').remove([p.file_path]);
   }
 
   async function saveCaption() {
     if (!lightbox || savingCaption) return;
     setSavingCaption(true);
-    const { data, error } = await supabase.from('photos')
-      .update({ caption: caption.trim() || null })
-      .eq('id', lightbox.id).select().single();
+    const optimistic = { ...lightbox, caption: caption.trim() || null };
+    const { data, error } = await mutate({ table: 'photos', type: 'update', id: lightbox.id, patch: { caption: caption.trim() || null } });
     setSavingCaption(false);
     if (error) {
       setErrMsg('No se pudo guardar la nota.');
       return;
     }
-    if (data) {
-      apply({ eventType: 'UPDATE', new: data, old: {} });
-      setLightbox(data as Photo);
-    }
+    apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
+    setLightbox((data ?? optimistic) as Photo);
   }
 
   function openLightbox(p: Photo) {

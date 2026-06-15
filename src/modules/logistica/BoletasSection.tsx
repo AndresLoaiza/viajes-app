@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarDays, ExternalLink, FileText, Pencil, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
+import { mutate, uuid } from '../../lib/mutate';
 import { formatShortEs, isUnpaid } from '../../lib/logistica';
 import type { Ticket, TravelerId, TripConfig } from '../../types/trip';
 import {
@@ -91,29 +92,33 @@ export default function BoletasSection({ trip, identity }: {
       // sin archivo nuevo en edición → conservar el existente
       ...(file_path !== undefined ? { file_path } : {}),
     };
-    const q = editingId
-      ? supabase.from('tickets').update(payload).eq('id', editingId).select().single()
-      : supabase.from('tickets').insert({ ...payload, trip_id: trip.id, created_by: identity }).select().single();
-    const { data, error } = await q;
-    setSaving(false);
-    if (error) {
-      setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
-      return;
+    if (editingId) {
+      const orig = rows.find((r) => r.id === editingId);
+      const optimistic = { ...orig, ...payload, id: editingId };
+      const { data, error } = await mutate({ table: 'tickets', type: 'update', id: editingId, patch: payload });
+      setSaving(false);
+      if (error) { setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.'); return; }
+      apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
+    } else {
+      const row = { id: uuid(), ...payload, file_path: file_path ?? null, trip_id: trip.id, created_by: identity, created_at: new Date().toISOString() };
+      const { data, error } = await mutate({ table: 'tickets', type: 'insert', row });
+      setSaving(false);
+      if (error) { setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.'); return; }
+      apply({ eventType: 'INSERT', new: data ?? row, old: {} });
     }
-    if (data) apply({ eventType: editingId ? 'UPDATE' : 'INSERT', new: data, old: {} });
     setShowForm(false);
     setEditingId(null);
   }
 
   async function remove(t: Ticket) {
     if (!confirm(`¿Borrar "${t.title}"?`)) return;
-    const { error } = await supabase.from('tickets').delete().eq('id', t.id);
+    const { error } = await mutate({ table: 'tickets', type: 'delete', id: t.id });
     if (error) {
       setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.');
       return;
     }
     apply({ eventType: 'DELETE', new: {}, old: { id: t.id } });
-    if (t.file_path) await supabase.storage.from('docs').remove([t.file_path]);
+    if (t.file_path && navigator.onLine) await supabase.storage.from('docs').remove([t.file_path]);
   }
 
   function renderForm() {

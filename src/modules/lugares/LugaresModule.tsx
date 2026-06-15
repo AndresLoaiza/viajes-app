@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Heart } from 'lucide-react';
 import CategoryGrid from '../../components/CategoryGrid';
 import PlaceCard from '../../components/PlaceCard';
-import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
+import { mutate, uuid } from '../../lib/mutate';
 import type { TripConfig, TravelerId, TripPlaceSelection } from '../../types/trip';
 import type { PlaceSelection, SelectionsMap } from '../../types/city';
 
@@ -62,19 +62,22 @@ export default function LugaresModule({ trip, identity }: {
     if (updated.selected !== wasSelected) {
       setPending((p) => ({ ...p, [updated.placeId]: updated.selected }));
       setErrMsg('');
-      let error = null;
+      let error: string | null = null;
       if (updated.selected) {
-        const res = await supabase.from('place_selections').insert({
+        const newRow = {
+          id: uuid(),
           trip_id: trip.id,
           city_id: cityId,
           place_id: updated.placeId,
           selected_by: identity,
           note: updated.notes || null,
-        }).select().single();
+          created_at: new Date().toISOString(),
+        };
+        const res = await mutate({ table: 'place_selections', type: 'insert', row: newRow });
         error = res.error;
-        if (res.data) apply({ eventType: 'INSERT', new: res.data, old: {} });
+        if (!error) apply({ eventType: 'INSERT', new: res.data ?? newRow, old: {} });
       } else if (row) {
-        ({ error } = await supabase.from('place_selections').delete().eq('id', row.id));
+        ({ error } = await mutate({ table: 'place_selections', type: 'delete', id: row.id }));
         if (!error) apply({ eventType: 'DELETE', new: {}, old: { id: row.id } });
       }
       if (error) setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
@@ -90,9 +93,10 @@ export default function LugaresModule({ trip, identity }: {
       setDraftNotes((d) => ({ ...d, [updated.placeId]: updated.notes ?? '' }));
       clearTimeout(noteTimers.current[updated.placeId]);
       noteTimers.current[updated.placeId] = setTimeout(async () => {
-        await supabase.from('place_selections')
-          .update({ note: updated.notes || null })
-          .eq('id', row.id);
+        const { data } = await mutate({
+          table: 'place_selections', type: 'update', id: row.id, patch: { note: updated.notes || null },
+        });
+        apply({ eventType: 'UPDATE', new: data ?? { ...row, note: updated.notes || null }, old: {} });
         setDraftNotes((d) => {
           const { [updated.placeId]: _drop, ...rest } = d;
           return rest;

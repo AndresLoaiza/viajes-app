@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MoveRight, Pencil, Plane, Trash2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
+import { mutate, uuid } from '../../lib/mutate';
 import { tsDate, tsTime, formatShortEs } from '../../lib/logistica';
 import type { Flight, TravelerId, TripConfig } from '../../types/trip';
 import {
@@ -74,23 +74,27 @@ export default function VuelosSection({ trip, identity }: {
       confirmation: form.confirmation.trim() || null,
       note: form.note.trim() || null,
     };
-    const q = editingId
-      ? supabase.from('flights').update(payload).eq('id', editingId).select().single()
-      : supabase.from('flights').insert({ ...payload, trip_id: trip.id, created_by: identity }).select().single();
-    const { data, error } = await q;
-    setSaving(false);
-    if (error) {
-      setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
-      return;
+    if (editingId) {
+      const orig = rows.find((r) => r.id === editingId);
+      const optimistic = { ...orig, ...payload, id: editingId };
+      const { data, error } = await mutate({ table: 'flights', type: 'update', id: editingId, patch: payload });
+      setSaving(false);
+      if (error) { setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.'); return; }
+      apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
+    } else {
+      const row = { id: uuid(), ...payload, flight_number: null, trip_id: trip.id, created_by: identity, created_at: new Date().toISOString() };
+      const { data, error } = await mutate({ table: 'flights', type: 'insert', row });
+      setSaving(false);
+      if (error) { setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.'); return; }
+      apply({ eventType: 'INSERT', new: data ?? row, old: {} });
     }
-    if (data) apply({ eventType: editingId ? 'UPDATE' : 'INSERT', new: data, old: {} });
     setShowForm(false);
     setEditingId(null);
   }
 
   async function remove(id: string) {
     if (!confirm('¿Borrar este vuelo?')) return;
-    const { error } = await supabase.from('flights').delete().eq('id', id);
+    const { error } = await mutate({ table: 'flights', type: 'delete', id });
     if (error) {
       setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.');
       return;

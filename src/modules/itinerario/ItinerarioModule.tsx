@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, FileText, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
+import { mutate, uuid } from '../../lib/mutate';
 import { formatDayEs, isToday } from '../../lib/dates';
 import type { TripConfig, ItineraryItem, Ticket, TravelerId } from '../../types/trip';
 
@@ -54,27 +55,31 @@ export default function ItinerarioModule({ trip, identity }: {
     if (!fTitle.trim() || saving) return;
     setSaving(true);
     setErrMsg('');
-    const { data, error } = await supabase.from('itinerary_items').insert({
+    const row = {
+      id: uuid(),
       trip_id: trip.id,
       date: activeDate,
       time: fTime || null,
       title: fTitle.trim(),
+      place_id: null,
       note: fNote.trim() || null,
       created_by: identity,
-    }).select().single();
+      created_at: new Date().toISOString(),
+    };
+    const { data, error } = await mutate({ table: 'itinerary_items', type: 'insert', row });
     setSaving(false);
     if (error) {
       setErrMsg('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
       return;
     }
-    if (data) apply({ eventType: 'INSERT', new: data, old: {} });
+    apply({ eventType: 'INSERT', new: data ?? row, old: {} });
     setFTime(''); setFTitle(''); setFNote('');
     setShowForm(false);
   }
 
   async function removeItem(id: string) {
     if (!confirm('¿Borrar este plan?')) return;
-    const { error } = await supabase.from('itinerary_items').delete().eq('id', id);
+    const { error } = await mutate({ table: 'itinerary_items', type: 'delete', id });
     if (error) {
       setErrMsg('No se pudo borrar. Revisa tu conexión e intenta de nuevo.');
       return;
