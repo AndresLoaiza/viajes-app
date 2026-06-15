@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Camera, CalendarDays, MapPin, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Camera, CalendarDays, MapPin, Sparkles, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { formatDayEs } from '../../lib/dates';
@@ -13,6 +13,7 @@ const photoUrl = (path: string) =>
 /** Recuerdos: recap del viaje a partir de las fotos (fecha + lugar de los GPS). */
 export default function RecuerdosModule({ trip }: { trip: TripConfig }) {
   const { rows, loading } = useTable<Photo>('photos', trip.id);
+  const [viewer, setViewer] = useState<Photo | null>(null);
 
   const days = useMemo(() => daysAscending(rows), [rows]);
   const places = useMemo(() => placesSummary(rows), [rows]);
@@ -94,19 +95,54 @@ export default function RecuerdosModule({ trip }: { trip: TripConfig }) {
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {d.photos.map((p) => (
-                  <img
+                  <button
                     key={p.id}
-                    src={photoUrl(p.file_path)}
-                    alt={p.place ?? ''}
-                    loading="lazy"
-                    className="h-32 w-24 flex-shrink-0 object-cover rounded-xl bg-sand/40"
-                  />
+                    onClick={() => setViewer(p)}
+                    aria-label={p.place ? `Ver foto: ${p.place}` : 'Ver foto'}
+                    className="h-32 w-24 flex-shrink-0 rounded-xl bg-sand/40 overflow-hidden cursor-pointer"
+                  >
+                    <img
+                      src={photoUrl(p.file_path)}
+                      alt={p.place ?? ''}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
                 ))}
               </div>
             </div>
           ))}
         </div>
       </section>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {viewer && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+            role="dialog" aria-modal="true" aria-label="Foto ampliada"
+            onClick={() => setViewer(null)}
+          >
+            <div className="flex justify-end px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+              <button onClick={() => setViewer(null)} aria-label="Cerrar foto"
+                className="min-w-11 min-h-11 flex items-center justify-center text-white/80 hover:text-white cursor-pointer">
+                <X className="w-6 h-6" aria-hidden />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 flex items-center justify-center px-2">
+              <img src={photoUrl(viewer.file_path)} alt={viewer.place ?? ''}
+                className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} />
+            </div>
+            {(viewer.place || viewer.taken_on) && (
+              <p className="text-center text-white/85 text-sm pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+                {viewer.place}{viewer.place && viewer.taken_on ? ' · ' : ''}
+                {viewer.taken_on ? formatDayEs(viewer.taken_on) : ''}
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
