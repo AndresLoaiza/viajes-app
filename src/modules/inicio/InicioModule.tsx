@@ -3,6 +3,7 @@ import { AlertTriangle, CalendarDays, Sparkles, Ticket as TicketIcon } from 'luc
 import { useTable } from '../../lib/realtime';
 import { daysUntil, formatDayEs, isToday } from '../../lib/dates';
 import WeatherSection from './WeatherSection';
+import DatosClaveCard from './DatosClaveCard';
 import type { TripConfig, ItineraryItem, Ticket } from '../../types/trip';
 
 /** Inicio: countdown hero + plan de hoy (durante el viaje). */
@@ -133,6 +134,8 @@ export default function InicioModule({ trip }: { trip: TripConfig }) {
           </ol>
         </motion.section>
       )}
+
+      <DatosClaveCard />
     </div>
   );
 }
