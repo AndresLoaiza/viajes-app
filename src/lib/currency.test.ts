@@ -47,4 +47,8 @@ describe('formatMoney', () => {
   it('USD con símbolo US$', () => {
     expect(formatMoney(10, 'USD')).toBe('US$10,00');
   });
+  it('cero', () => {
+    expect(formatMoney(0, 'COP')).toBe('$0');
+    expect(convert(0, 'BRL', 'COP', rates)).toBe(0);
+  });
 });

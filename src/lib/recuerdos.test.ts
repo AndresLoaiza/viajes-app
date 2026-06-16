@@ -15,6 +15,14 @@ const ph = (over: Partial<Photo>): Photo => ({
   ...over,
 });
 
+describe('vacío', () => {
+  it('sin fotos → stats en cero y días vacío', () => {
+    expect(tripStats([])).toEqual({ photos: 0, days: 0, places: 0 });
+    expect(daysAscending([])).toEqual([]);
+    expect(placesSummary([])).toEqual([]);
+  });
+});
+
 describe('tripStats', () => {
   it('cuenta fotos, días y lugares distintos', () => {
     const s = tripStats([

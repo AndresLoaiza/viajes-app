@@ -75,6 +75,15 @@ describe('summarize', () => {
     expect(s.byCategory[0].category).toBe('otros');
   });
 
+  it('lista vacía → ceros, sin deuda, sin categorías', () => {
+    const s = summarize([], rates);
+    expect(s.totalCOP).toBe(0);
+    expect(s.byPerson).toEqual({ andres: 0, melisa: 0 });
+    expect(s.byCategory).toEqual([]);
+    expect(s.settle).toBeNull();
+    expect(s.skipped).toBe(0);
+  });
+
   it('cuenta los no convertibles (moneda sin tasa)', () => {
     const broken: Rates = { ...rates, rates: { ...rates.rates, ARS: 0 } };
     const s = summarize([
