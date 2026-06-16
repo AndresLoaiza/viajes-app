@@ -4,7 +4,7 @@ import { Camera, CalendarDays, MapPin, Sparkles, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { formatDayEs } from '../../lib/dates';
-import { daysAscending, placesSummary, tripStats } from '../../lib/recuerdos';
+import { daysAscending, tripStats } from '../../lib/recuerdos';
 import type { Photo, TripConfig } from '../../types/trip';
 
 const photoUrl = (path: string) =>
@@ -16,7 +16,6 @@ export default function RecuerdosModule({ trip }: { trip: TripConfig }) {
   const [viewer, setViewer] = useState<Photo | null>(null);
 
   const days = useMemo(() => daysAscending(rows), [rows]);
-  const places = useMemo(() => placesSummary(rows), [rows]);
   const stats = useMemo(() => tripStats(rows), [rows]);
   const dated = useMemo(() => rows.filter((p) => p.taken_on).sort((a, b) => a.taken_on!.localeCompare(b.taken_on!)), [rows]);
   const cover = dated[0] ?? rows[0];
@@ -64,35 +63,15 @@ export default function RecuerdosModule({ trip }: { trip: TripConfig }) {
         </div>
       </div>
 
-      {/* Lugares que visitamos */}
-      {places.length > 0 && (
-        <section className="px-5 mt-6">
-          <h2 className="font-display font-bold text-gray-700 mb-2">Lugares que visitamos</h2>
-          <div className="flex flex-wrap gap-1.5">
-            {places.map((p) => (
-              <span key={p.place} className="inline-flex items-center gap-1 rounded-full bg-white border border-sand-dark px-2.5 py-1 text-xs text-gray-600">
-                <MapPin className="w-3 h-3 text-brasil-blue" aria-hidden /> {p.place}
-                {p.count > 1 && <span className="text-gray-400">· {p.count}</span>}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Día a día */}
       <section className="px-5 mt-7">
         <h2 className="font-display font-bold text-gray-700 mb-3">Día a día</h2>
         <div className="space-y-6">
           {days.map((d) => (
             <div key={d.date ?? 'sin-fecha'}>
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className="font-display font-bold text-gray-800 capitalize">
-                  {d.date ? formatDayEs(d.date) : 'Sin fecha'}
-                </span>
-                {d.places.length > 0 && (
-                  <span className="text-xs text-gray-400 truncate">{d.places.join(' · ')}</span>
-                )}
-              </div>
+              <p className="font-display font-bold text-gray-800 capitalize whitespace-nowrap mb-2">
+                {d.date ? formatDayEs(d.date) : 'Sin fecha'}
+              </p>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {d.photos.map((p) => (
                   <button
