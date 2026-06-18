@@ -23,6 +23,8 @@ export default function WeatherSection({ trip }: { trip: TripConfig }) {
   useEffect(() => {
     if (!city?.center) return;
     let alive = true;
+    // Reset intencional al cambiar de ciudad: volvemos a "cargando" antes del fetch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState('loading');
     fetchWeather(city.center[0], city.center[1])
       .then((w) => { if (alive) { setData(w); setState('ok'); } })

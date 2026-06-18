@@ -18,6 +18,8 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
   const [leaving, setLeaving] = useState<0 | 1 | -1>(0); // 1 like, -1 skip
   const [imgBroken, setImgBroken] = useState<Record<string, boolean>>({});
   const [showObras, setShowObras] = useState(false);
+  // Espejo en estado del ref `dragging` para leerlo en render sin romper react-hooks/refs.
+  const [isDragging, setIsDragging] = useState(false);
 
   const startX = useRef(0);
   const dragging = useRef(false);
@@ -48,6 +50,7 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
   const onPointerDown = (e: React.PointerEvent) => {
     if (leaving || done) return;
     dragging.current = true;
+    setIsDragging(true);
     startX.current = e.clientX;
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   };
@@ -58,6 +61,7 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
   const onPointerUp = () => {
     if (!dragging.current) return;
     dragging.current = false;
+    setIsDragging(false);
     if (dx > THRESHOLD) decide(true);
     else if (dx < -THRESHOLD) decide(false);
     else setDx(0);
@@ -171,7 +175,7 @@ export default function SwipeDeck({ category, places, selections, onDecide, onCl
                   className="absolute inset-0 rounded-3xl bg-white shadow-xl overflow-hidden select-none touch-none"
                   style={{
                     transform: topTransform,
-                    transition: leaving || !dragging.current
+                    transition: leaving || !isDragging
                       ? 'transform 0.26s ease-out'
                       : 'none',
                     cursor: 'grab',

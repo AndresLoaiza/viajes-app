@@ -9,23 +9,31 @@ type BeforeInstallPrompt = Event & {
 
 const DISMISS_KEY = 'pwa-install-dismissed';
 
+/** True si el banner está descartado o la app ya corre instalada (standalone). */
+function isSuppressed(): boolean {
+  try { if (localStorage.getItem(DISMISS_KEY)) return true; } catch { /* sin storage → seguir */ }
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
+/** Detección iOS (determinística) → se resuelve en el estado inicial, no en un efecto. */
+function detectIos(): boolean {
+  if (isSuppressed()) return false;
+  const ua = navigator.userAgent;
+  return /iphone|ipad|ipod/i.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
+}
+
 /** Banner discreto para instalar la PWA. Android/Chrome usa beforeinstallprompt; iOS muestra un hint. */
 export default function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPrompt | null>(null);
-  const [iosHint, setIosHint] = useState(false);
-  const [show, setShow] = useState(false);
+  // iOS no dispara beforeinstallprompt → el hint se decide al montar.
+  const [iosHint] = useState(detectIos);
+  const [show, setShow] = useState(iosHint);
 
   useEffect(() => {
-    try { if (localStorage.getItem(DISMISS_KEY)) return; } catch { /* sin storage → seguir */ }
-
-    const standalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (standalone) return;
-
-    const ua = navigator.userAgent;
-    const isIOS = /iphone|ipad|ipod/i.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
-    if (isIOS) { setIosHint(true); setShow(true); return; }
+    if (iosHint || isSuppressed()) return; // iOS ya resuelto vía estado inicial
 
     const onPrompt = (e: Event) => { e.preventDefault(); setDeferred(e as BeforeInstallPrompt); setShow(true); };
     const onInstalled = () => setShow(false);
@@ -35,7 +43,7 @@ export default function InstallPrompt() {
       window.removeEventListener('beforeinstallprompt', onPrompt);
       window.removeEventListener('appinstalled', onInstalled);
     };
-  }, []);
+  }, [iosHint]);
 
   function dismiss() {
     setShow(false);
