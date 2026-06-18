@@ -12,7 +12,7 @@ vi.mock('../../lib/realtime', () => ({
 }));
 
 let mutateResult: { data: unknown; error: unknown } = { data: { id: 'new-1' }, error: null };
-const mutate = vi.fn(() => Promise.resolve(mutateResult));
+const mutate = vi.fn((..._a: unknown[]) => Promise.resolve(mutateResult));
 vi.mock('../../lib/mutate', () => ({
   mutate: (op: unknown) => mutate(op),
   uuid: () => 'uuid-1',

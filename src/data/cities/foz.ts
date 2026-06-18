@@ -1,11 +1,18 @@
 import type { CityConfig } from '../../types/city';
 
+// Imágenes decorativas (Ideogram) de Foz do Iguaçu en /public/decor/foz
+const asset = (p: string) => `${import.meta.env.BASE_URL}decor/foz/${p}`;
+
 const foz: CityConfig = {
   id: 'foz',
   name: 'Foz do Iguaçu',
   country: 'Brasil',
   flag: '🇧🇷',
   coverImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Iguazu_Falls_Panorama_2009.jpg/960px-Iguazu_Falls_Panorama_2009.jpg',
+  heroImage: asset('hero.png'),
+  successImage: asset('success.png'),
+  welcomeBadge: asset('welcome-badge.png'),
+  mascot: asset('mascot.png'),
   welcomeTitle: '¡Bienvenidos a Foz! 🌊',
   welcomeSubtitle: 'Las cataratas más impresionantes del mundo te esperan en Foz do Iguaçu.',
   travelerName: 'Melisa',
@@ -157,6 +164,7 @@ const foz: CityConfig = {
     primaryColor: '#1A7A4A',
     secondaryColor: '#2B7A9E',
     accentColor: '#F6AD55',
+    bgPattern: asset('pattern.png'),
   },
   center: [-25.55, -54.55],
   zoom: 11,
