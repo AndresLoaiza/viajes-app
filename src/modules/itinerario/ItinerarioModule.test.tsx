@@ -20,7 +20,21 @@ vi.mock('../../lib/supabase', () => ({
   supabase: { storage: { from: () => ({ getPublicUrl: (p: string) => ({ data: { publicUrl: `https://cdn/${p}` } }) }) } },
 }));
 
+// useMundial mockeado; los helpers puros (partidosDeFecha, etc.) quedan reales.
+let partidosMock: Partido[] = [];
+vi.mock('../../lib/mundial', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/mundial')>();
+  return { ...actual, useMundial: () => ({ partidos: partidosMock, loading: false }) };
+});
+
 import ItinerarioModule from './ItinerarioModule';
+import type { Partido } from '../../lib/mundial';
+
+const partido = (over: Partial<Partido> = {}): Partido => ({
+  id: 'm1', ext_id: '1', fase: 'grupos', grupo: 'A', fecha_hora: '2026-06-25T18:00:00Z',
+  equipo_local: 'Brazil', equipo_visitante: 'Croatia', bandera_local: null, bandera_visitante: null,
+  gol_local_real: null, gol_visitante_real: null, estado: 'programado', ...over,
+});
 
 const cities = [{ id: 'rio', name: 'Río', flag: '🇧🇷' }] as unknown as CityConfig[];
 const trip = {
@@ -49,6 +63,7 @@ describe('ItinerarioModule', () => {
   beforeEach(() => {
     apply.mockClear(); mutate.mockClear();
     stores.itinerary_items = []; stores.tickets = [];
+    partidosMock = [];
     mutateResult = { data: { id: 'new-1' }, error: null };
     vi.stubGlobal('confirm', () => true);
   });
@@ -72,6 +87,22 @@ describe('ItinerarioModule', () => {
     // ticket trae enlace a boleta
     expect(screen.getByRole('link', { name: /Ver boleta/ }).getAttribute('href'))
       .toBe('https://cdn/brasil-2026/cristo.pdf');
+  });
+
+  it('muestra los partidos del Mundial del día (read-only)', () => {
+    // 18:00Z → 15:00 local (UTC-3) del 25-jun
+    partidosMock = [partido({ id: 'm1', equipo_local: 'Brazil', equipo_visitante: 'Croatia' })];
+    render(<ItinerarioModule trip={trip} identity="andres" />);
+    expect(screen.getByText('Brazil')).toBeInTheDocument();
+    expect(screen.getByText('Croatia')).toBeInTheDocument();
+    expect(screen.getByText(/Mundial · Grupo A/)).toBeInTheDocument();
+  });
+
+  it('partido por definir → "Por definir" (se actualiza cuando se sepa)', () => {
+    partidosMock = [partido({ equipo_local: 'Por definir', equipo_visitante: 'Por definir', fase: 'eliminacion', grupo: null })];
+    render(<ItinerarioModule trip={trip} identity="andres" />);
+    expect(screen.getByText(/Por definir/)).toBeInTheDocument();
+    expect(screen.getByText(/Mundial · Eliminación/)).toBeInTheDocument();
   });
 
   it('agregar plan → insert con date del día activo + apply', async () => {

@@ -5,6 +5,10 @@ import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { mutate, uuid } from '../../lib/mutate';
 import { formatDayEs, isToday } from '../../lib/dates';
+import {
+  useMundial, partidosDeFecha, horaLocalPartido, etiquetaFase, porDefinir, marcador,
+  type Partido,
+} from '../../lib/mundial';
 import type { TripConfig, ItineraryItem, Ticket, TravelerId } from '../../types/trip';
 
 const docUrl = (path: string) =>
@@ -27,6 +31,7 @@ export default function ItinerarioModule({ trip, identity }: {
   );
   const { rows, loading, apply } = useTable<ItineraryItem>('itinerary_items', trip.id);
   const { rows: ticketRows } = useTable<Ticket>('tickets', trip.id);
+  const { partidos } = useMundial();
   const [showForm, setShowForm] = useState(false);
   const [fTime, setFTime] = useState('');
   const [fTitle, setFTitle] = useState('');
@@ -43,12 +48,17 @@ export default function ItinerarioModule({ trip, identity }: {
   // Experiencias (tickets) del día — se gestionan en "Plan"; aquí van read-only,
   // mezcladas con los planes manuales y ordenadas por hora.
   const dayTickets = ticketRows.filter((t) => t.date === activeDate);
+  // Partidos del Mundial del día (read-only, desde la Polla). Se actualizan
+  // solos cuando se sabe quién juega (la Polla sincroniza la tabla).
+  const dayMatches = partidosDeFecha(partidos, activeDate);
   type Entry =
     | { kind: 'item'; key: string; sort: string; item: ItineraryItem }
-    | { kind: 'ticket'; key: string; sort: string; ticket: Ticket };
+    | { kind: 'ticket'; key: string; sort: string; ticket: Ticket }
+    | { kind: 'match'; key: string; sort: string; match: Partido };
   const entries: Entry[] = [
     ...items.map((i): Entry => ({ kind: 'item', key: i.id, sort: i.time ?? '99', item: i })),
     ...dayTickets.map((t): Entry => ({ kind: 'ticket', key: `tk-${t.id}`, sort: t.time ?? '99', ticket: t })),
+    ...dayMatches.map((m): Entry => ({ kind: 'match', key: `wc-${m.id}`, sort: horaLocalPartido(m.fecha_hora), match: m })),
   ].sort((a, b) => a.sort.localeCompare(b.sort));
 
   async function addItem() {
@@ -172,7 +182,7 @@ export default function ItinerarioModule({ trip, identity }: {
                     <Trash2 className="w-4 h-4" aria-hidden />
                   </button>
                 </motion.div>
-              ) : (
+              ) : e.kind === 'ticket' ? (
                 <motion.div
                   key={e.key}
                   initial={{ opacity: 0, y: 8 }}
@@ -202,6 +212,8 @@ export default function ItinerarioModule({ trip, identity }: {
                     </div>
                   </div>
                 </motion.div>
+              ) : (
+                <MatchRow key={e.key} match={e.match} />
               ),
             )}
           </AnimatePresence>
@@ -277,5 +289,57 @@ export default function ItinerarioModule({ trip, identity }: {
         )}
       </div>
     </div>
+  );
+}
+
+/** Un equipo: banderita (si hay) + nombre. */
+function Equipo({ nombre, bandera }: { nombre: string; bandera: string | null }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {bandera && <img src={bandera} alt="" className="w-4 h-4 rounded-sm object-cover" loading="lazy" />}
+      {nombre}
+    </span>
+  );
+}
+
+/** Partido del Mundial (read-only, desde la Polla). "Por definir" mientras no se sepa. */
+function MatchRow({ match: m }: { match: Partido }) {
+  const tbd = porDefinir(m);
+  const score = marcador(m);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      className="rounded-2xl bg-brasil-green/5 border border-brasil-green/40 p-4 flex items-start gap-3"
+    >
+      <span className="font-mono text-sm text-brasil-green font-bold w-12 flex-shrink-0 pt-0.5">
+        {horaLocalPartido(m.fecha_hora)}
+      </span>
+      <div className="flex-1 min-w-0">
+        {tbd ? (
+          <p className="font-semibold text-gray-500 italic">⚽ Por definir</p>
+        ) : (
+          <p className="font-semibold text-gray-800 flex items-center gap-1.5 flex-wrap">
+            <span aria-hidden>⚽</span>
+            <Equipo nombre={m.equipo_local} bandera={m.bandera_local} />
+            <span className="text-gray-400 text-xs">vs</span>
+            <Equipo nombre={m.equipo_visitante} bandera={m.bandera_visitante} />
+            {score && <span className="ml-1 text-sm font-bold text-gray-700">{score}</span>}
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-brasil-green/80">
+            Mundial · {etiquetaFase(m)}
+          </span>
+          {m.estado === 'en_juego' && (
+            <span className="text-[10px] font-bold text-red-600 animate-pulse">● EN VIVO</span>
+          )}
+          {m.estado === 'finalizado' && (
+            <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Final</span>
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 }
