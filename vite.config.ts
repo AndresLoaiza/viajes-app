@@ -28,6 +28,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/viajes-app\/.*\.(png|jpg|jpeg|svg|webp)$/],
         runtimeCaching: [
           {
