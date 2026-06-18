@@ -139,6 +139,30 @@ export default function LugaresModule({ trip, identity }: {
 
       {!catConfig ? (
         <>
+          {/* Hero de la ciudad (arte Ideogram) */}
+          <div className="relative h-32 rounded-3xl overflow-hidden mb-4 shadow-md">
+            <img
+              src={city.heroImage ?? city.coverImage}
+              alt={city.name}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{ background: 'linear-gradient(to top, rgba(0,39,118,0.78), rgba(0,39,118,0.05) 70%)' }}
+            />
+            <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="font-display font-bold text-2xl text-white leading-tight drop-shadow">{city.name}</h2>
+                <p className="text-white/80 text-xs">
+                  {city.places.length} lugares · {city.categories.length} categorías
+                </p>
+              </div>
+              {city.mascot && (
+                <img src={city.mascot} alt="" className="w-16 h-16 object-contain drop-shadow-lg flex-shrink-0" />
+              )}
+            </div>
+          </div>
           <p className="text-sm text-gray-500 mb-4">
             Marquen lo que les gustaría conocer — cada quien con su corazón, y se ve en vivo.
           </p>

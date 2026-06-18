@@ -43,6 +43,7 @@ import LugaresModule from './LugaresModule';
 
 const city = {
   id: 'rio', name: 'Río', flag: '🇧🇷',
+  heroImage: 'hero.png', mascot: 'mascot.png',
   categories: [{ id: 'playas', name: 'Playas', emoji: '🏖️', color: '#000' }],
   places: [{ id: 'p1', name: 'Copacabana', category: 'playas', description: '', images: [] }],
   dates: [],
@@ -66,6 +67,14 @@ describe('LugaresModule', () => {
     mutateResult = { data: { id: 'new-1' }, error: null };
   });
   afterEach(() => vi.useRealTimers());
+
+  it('vista de categorías muestra el hero de la ciudad con su arte', () => {
+    render(<LugaresModule trip={trip} identity="andres" />);
+    const hero = screen.getByAltText('Río') as HTMLImageElement;
+    expect(hero.getAttribute('src')).toBe('hero.png');
+    // nombre de ciudad en el hero + el mascot decorativo
+    expect(screen.getByRole('heading', { name: 'Río' })).toBeInTheDocument();
+  });
 
   it('elegir categoría muestra los lugares', () => {
     openCategory();
