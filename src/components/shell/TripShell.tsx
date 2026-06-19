@@ -27,7 +27,7 @@ export default function TripShell({ trip, onBack, renderModule }: {
   const showNav = trip.modules.length > 1;
 
   return (
-    <div className="min-h-svh bg-warm-white" style={{ paddingBottom: showNav ? '5.5rem' : 0 }}>
+    <div className="min-h-svh bg-warm-white" style={{ paddingBottom: showNav ? 'calc(6rem + env(safe-area-inset-bottom))' : 0 }}>
       <header
         className="sticky top-0 z-40 px-4 py-3 flex items-center gap-3 shadow-sm"
         style={{ backgroundColor: '#002776' }}
@@ -52,7 +52,7 @@ export default function TripShell({ trip, onBack, renderModule }: {
         <nav
           aria-label="Secciones del viaje"
           className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-sand-dark"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.625rem)' }}
         >
           <div className="max-w-xl mx-auto flex">
             {trip.modules.map((m) => {

@@ -17,6 +17,7 @@ vi.mock('../../lib/dates', () => ({
 }));
 
 vi.mock('./WeatherSection', () => ({ default: () => <div data-testid="weather" /> }));
+vi.mock('../logistica/ConversorCard', () => ({ default: () => <div data-testid="conversor" /> }));
 
 import InicioModule from './InicioModule';
 
