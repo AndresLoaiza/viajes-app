@@ -119,6 +119,15 @@ describe('ItinerarioModule', () => {
     expect(screen.getByText(/Quieren ir · Melisa/)).toBeInTheDocument();
   });
 
+  it('muestra a ambos: uno fija el día, el otro también eligió el lugar', () => {
+    stores.place_selections = [
+      { id: 'a', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'cristo', selected_by: 'andres', note: null, preferred_dates: ['thu-25'], created_at: '' },
+      { id: 'b', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'cristo', selected_by: 'melisa', note: null, preferred_dates: [], created_at: '' },
+    ];
+    renderModule();
+    expect(screen.getByText(/Quieren ir · Andrés y Melisa/)).toBeInTheDocument();
+  });
+
   it('lugar con día preferido distinto NO aparece hoy', () => {
     stores.place_selections = [{
       id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'cristo',

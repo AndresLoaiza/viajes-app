@@ -64,17 +64,22 @@ export default function ItinerarioModule({ trip, identity }: {
   const activeDayNum = activeDate ? Number(activeDate.slice(8)) : NaN;
   const dayPlaceSel = (() => {
     if (!day) return [] as { place_id: string; name: string; who: TravelerId[] }[];
-    const byPlace = new Map<string, Set<TravelerId>>();
+    // Lugares cuyo día preferido (de cualquiera) cae hoy.
+    const placesHoy = new Set<string>();
     placeSels.forEach((s) => {
-      if (s.city_id !== day.cityId) return;
-      if (!s.preferred_dates?.some((id) => Number(id.split('-').pop()) === activeDayNum)) return;
-      const set = byPlace.get(s.place_id) ?? new Set<TravelerId>();
-      set.add(s.selected_by);
-      byPlace.set(s.place_id, set);
+      if (s.city_id === day.cityId && s.preferred_dates?.some((id) => Number(id.split('-').pop()) === activeDayNum)) {
+        placesHoy.add(s.place_id);
+      }
     });
     const placeName = (pid: string) =>
       trip.cities.find((c) => c.id === day.cityId)?.places.find((p) => p.id === pid)?.name ?? pid;
-    return [...byPlace.entries()].map(([place_id, who]) => ({ place_id, name: placeName(place_id), who: [...who] }));
+    // who = todos los que eligieron ese lugar (aunque no hayan fijado el día).
+    return [...placesHoy].map((place_id) => {
+      const who = [...new Set(
+        placeSels.filter((s) => s.city_id === day.cityId && s.place_id === place_id).map((s) => s.selected_by),
+      )];
+      return { place_id, name: placeName(place_id), who };
+    });
   })();
   type Entry =
     | { kind: 'item'; key: string; sort: string; item: ItineraryItem }
