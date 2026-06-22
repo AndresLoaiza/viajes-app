@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, FileText, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
+import { AlertTriangle, BedDouble, FileText, MoveRight, Plane, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { mutate, uuid } from '../../lib/mutate';
 import { formatDayEs, isToday } from '../../lib/dates';
+import { tsDate, tsTime } from '../../lib/logistica';
 import {
   useMundial, partidosDeFecha, horaLocalPartido, etiquetaFase, porDefinir, marcador,
   type Partido,
 } from '../../lib/mundial';
-import type { TripConfig, ItineraryItem, Ticket, TravelerId } from '../../types/trip';
+import type { TripConfig, ItineraryItem, Ticket, Flight, Hotel, TravelerId } from '../../types/trip';
 
 const docUrl = (path: string) =>
   supabase.storage.from('docs').getPublicUrl(path).data.publicUrl;
@@ -31,6 +32,8 @@ export default function ItinerarioModule({ trip, identity }: {
   );
   const { rows, loading, apply } = useTable<ItineraryItem>('itinerary_items', trip.id);
   const { rows: ticketRows } = useTable<Ticket>('tickets', trip.id);
+  const { rows: flightRows } = useTable<Flight>('flights', trip.id);
+  const { rows: hotelRows } = useTable<Hotel>('hotels', trip.id);
   const { partidos } = useMundial();
   const [showForm, setShowForm] = useState(false);
   const [fTime, setFTime] = useState('');
@@ -51,14 +54,25 @@ export default function ItinerarioModule({ trip, identity }: {
   // Partidos del Mundial del día (read-only, desde la Polla). Se actualizan
   // solos cuando se sabe quién juega (la Polla sincroniza la tabla).
   const dayMatches = partidosDeFecha(partidos, activeDate);
+  // Vuelos del día (por fecha de salida) y hoteles (check-in/check-out del día).
+  const dayFlights = flightRows.filter((f) => tsDate(f.departs_at) === activeDate);
+  const dayHotels = hotelRows.filter((h) => h.check_in === activeDate || h.check_out === activeDate);
   type Entry =
     | { kind: 'item'; key: string; sort: string; item: ItineraryItem }
     | { kind: 'ticket'; key: string; sort: string; ticket: Ticket }
-    | { kind: 'match'; key: string; sort: string; match: Partido };
+    | { kind: 'match'; key: string; sort: string; match: Partido }
+    | { kind: 'flight'; key: string; sort: string; flight: Flight }
+    | { kind: 'hotel'; key: string; sort: string; hotel: Hotel; tipo: 'in' | 'out' };
   const entries: Entry[] = [
     ...items.map((i): Entry => ({ kind: 'item', key: i.id, sort: i.time ?? '99', item: i })),
     ...dayTickets.map((t): Entry => ({ kind: 'ticket', key: `tk-${t.id}`, sort: t.time ?? '99', ticket: t })),
     ...dayMatches.map((m): Entry => ({ kind: 'match', key: `wc-${m.id}`, sort: horaLocalPartido(m.fecha_hora), match: m })),
+    ...dayFlights.map((f): Entry => ({ kind: 'flight', key: `fl-${f.id}`, sort: tsTime(f.departs_at), flight: f })),
+    // Check-out al inicio del día (te vas en la mañana); check-in al final (llegas).
+    ...dayHotels.flatMap((h): Entry[] => [
+      ...(h.check_out === activeDate ? [{ kind: 'hotel', key: `ho-out-${h.id}`, sort: '00:00', hotel: h, tipo: 'out' } as Entry] : []),
+      ...(h.check_in === activeDate ? [{ kind: 'hotel', key: `ho-in-${h.id}`, sort: '23:59', hotel: h, tipo: 'in' } as Entry] : []),
+    ]),
   ].sort((a, b) => a.sort.localeCompare(b.sort));
 
   async function addItem() {
@@ -212,8 +226,12 @@ export default function ItinerarioModule({ trip, identity }: {
                     </div>
                   </div>
                 </motion.div>
-              ) : (
+              ) : e.kind === 'match' ? (
                 <MatchRow key={e.key} match={e.match} />
+              ) : e.kind === 'flight' ? (
+                <FlightRow key={e.key} flight={e.flight} />
+              ) : (
+                <HotelRow key={e.key} hotel={e.hotel} tipo={e.tipo} />
               ),
             )}
           </AnimatePresence>
@@ -289,6 +307,59 @@ export default function ItinerarioModule({ trip, identity }: {
         )}
       </div>
     </div>
+  );
+}
+
+/** Vuelo del día (read-only, gestionado en Plan). */
+function FlightRow({ flight: f }: { flight: Flight }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      className="rounded-2xl bg-brasil-blue/5 border border-brasil-blue/40 p-4 flex items-start gap-3"
+    >
+      <span className="font-mono text-sm text-brasil-blue font-bold w-12 flex-shrink-0 pt-0.5">
+        {tsTime(f.departs_at)}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-gray-800 flex items-center gap-1.5 flex-wrap">
+          <Plane className="w-4 h-4 text-brasil-blue flex-shrink-0" aria-hidden />
+          {f.from_city}
+          <MoveRight className="w-3.5 h-3.5 text-gray-400" aria-hidden />
+          {f.to_city}
+        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-brasil-blue/80">
+            Vuelo · {f.airline}{f.flight_number ? ` ${f.flight_number}` : ''}
+          </span>
+          {f.arrives_at && <span className="text-[11px] text-gray-500">llega {tsTime(f.arrives_at)}</span>}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/** Check-in / check-out de hotel en el día. */
+function HotelRow({ hotel: h, tipo }: { hotel: Hotel; tipo: 'in' | 'out' }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      className="rounded-2xl bg-sand/40 border border-sand-dark p-4 flex items-start gap-3"
+    >
+      <span className="font-mono text-sm text-gray-500 font-bold w-12 flex-shrink-0 pt-0.5" aria-hidden>🏨</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-gray-800 flex items-center gap-1.5">
+          <BedDouble className="w-4 h-4 text-gray-500 flex-shrink-0" aria-hidden />
+          {h.name}
+        </p>
+        <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+          {tipo === 'in' ? 'Check-in' : 'Check-out'}
+        </span>
+      </div>
+    </motion.div>
   );
 }
 
