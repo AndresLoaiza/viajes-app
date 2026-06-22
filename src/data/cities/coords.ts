@@ -23,6 +23,8 @@ export const placeCoords: Record<string, [number, number]> = {
   'forte-copacabana': [-22.985846, -43.184736],
   'garota-ipanema': [-22.985238, -43.202981],
   'havaianas': [-22.980624, -43.208952],
+  'lasai': [-22.951793, -43.193710],
+  'bacio-di-latte': [-23.566218, -46.670197],
   'ibirapuera': [-23.587713, -46.658521],
   'ims-paulista': [-23.556072, -46.661935],
   'ipanema': [-22.987311, -43.202126],

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, BedDouble, Check, ChevronDown, ChevronUp, FileText, MoveRight, Plane, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
+import { AlertTriangle, BedDouble, Check, FileText, GripVertical, MoveRight, Plane, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { mutate, uuid } from '../../lib/mutate';
@@ -15,6 +15,15 @@ import type { TripConfig, ItineraryItem, Ticket, Flight, Hotel, TravelerId, Trip
 
 const docUrl = (path: string) =>
   supabase.storage.from('docs').getPublicUrl(path).data.publicUrl;
+
+// Una entrada del día (timeline mezclado). Compartida con DayRow.
+type DayEntry =
+  | { kind: 'item'; key: string; sortNum: number; item: ItineraryItem }
+  | { kind: 'ticket'; key: string; sortNum: number; ticket: Ticket }
+  | { kind: 'match'; key: string; sortNum: number; match: Partido }
+  | { kind: 'flight'; key: string; sortNum: number; flight: Flight }
+  | { kind: 'hotel'; key: string; sortNum: number; hotel: Hotel; tipo: 'in' | 'out' }
+  | { kind: 'placesel'; key: string; sortNum: number; name: string; who: TravelerId[]; ids: string[]; visited: boolean };
 
 const WEEKDAY_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
@@ -43,6 +52,8 @@ export default function ItinerarioModule({ trip, identity }: {
   const [fNote, setFNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [errMsg, setErrMsg] = useState('');
+  // Orden visible durante un arrastre (keys). null = orden por datos (hora/posición).
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
 
   const day = trip.days.find((d) => d.date === activeDate);
   const ciudad = day ? trip.cities.find((c) => c.id === day.cityId) : null;
@@ -94,13 +105,7 @@ export default function ItinerarioModule({ trip, identity }: {
       };
     });
   })();
-  type Entry =
-    | { kind: 'item'; key: string; sortNum: number; item: ItineraryItem }
-    | { kind: 'ticket'; key: string; sortNum: number; ticket: Ticket }
-    | { kind: 'match'; key: string; sortNum: number; match: Partido }
-    | { kind: 'flight'; key: string; sortNum: number; flight: Flight }
-    | { kind: 'hotel'; key: string; sortNum: number; hotel: Hotel; tipo: 'in' | 'out' }
-    | { kind: 'placesel'; key: string; sortNum: number; name: string; who: TravelerId[]; ids: string[]; visited: boolean };
+  type Entry = DayEntry;
   const entries: Entry[] = [
     ...items.map((i): Entry => ({ kind: 'item', key: i.id, sortNum: itemSortNum(i), item: i })),
     ...dayTickets.map((t): Entry => ({ kind: 'ticket', key: `tk-${t.id}`, sortNum: toMin(t.time), ticket: t })),
@@ -116,6 +121,9 @@ export default function ItinerarioModule({ trip, identity }: {
       ...(h.check_in === activeDate ? [{ kind: 'hotel', key: `ho-in-${h.id}`, sortNum: 1500, hotel: h, tipo: 'in' } as Entry] : []),
     ]),
   ].sort((a, b) => a.sortNum - b.sortNum);
+  const byKey = new Map(entries.map((e) => [e.key, e] as const));
+  // Durante un arrastre usamos el orden local; si no, el orden por datos.
+  const displayKeys = (localOrder ?? entries.map((e) => e.key)).filter((k) => byKey.has(k));
 
   async function addItem() {
     if (!fTitle.trim() || saving) return;
@@ -164,25 +172,25 @@ export default function ItinerarioModule({ trip, identity }: {
     apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
   }
 
-  // Sube/baja un plan: le asigna una posición numérica que lo deja entre sus
-  // vecinos en la lista visible (default por hora; tras mover, manda la posición).
-  async function moveItem(itemKey: string, dir: -1 | 1) {
-    const idx = entries.findIndex((e) => e.key === itemKey);
-    const target = entries[idx];
-    if (idx < 0 || target.kind !== 'item') return;
-    const swapIdx = idx + dir;
-    if (swapIdx < 0 || swapIdx >= entries.length) return;
-    // Vecino al otro lado para calcular el punto medio.
-    const farIdx = idx + dir * 2;
-    const here = entries[swapIdx].sortNum;
-    const far = farIdx >= 0 && farIdx < entries.length ? entries[farIdx].sortNum : here + dir * 2;
-    const newPos = (here + far) / 2;
-    const optimistic = { ...target.item, position: newPos };
-    const { data, error } = await mutate({
-      table: 'itinerary_items', type: 'update', id: target.item.id, patch: { position: newPos },
-    });
-    if (error) { setErrMsg('No se pudo reordenar. Revisa tu conexión.'); return; }
-    apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
+  // Tras arrastrar (drag estilo Spotify): calcula una posición entre los
+  // vecinos visibles y la guarda. Default por hora; al mover manda la posición.
+  async function persistDrag(entry: Entry, orderKeys: string[]) {
+    const byKey = new Map(entries.map((e) => [e.key, e] as const));
+    const i = orderKeys.indexOf(entry.key);
+    if (i < 0) return;
+    const prev = byKey.get(orderKeys[i - 1] ?? '');
+    const next = byKey.get(orderKeys[i + 1] ?? '');
+    const lo = prev ? prev.sortNum : (next ? next.sortNum - 1 : 0);
+    const hi = next ? next.sortNum : (prev ? prev.sortNum + 1 : 0);
+    const newPos = lo === hi ? lo : (lo + hi) / 2;
+    if (entry.kind === 'item') {
+      const optimistic = { ...entry.item, position: newPos };
+      const { data, error } = await mutate({ table: 'itinerary_items', type: 'update', id: entry.item.id, patch: { position: newPos } });
+      if (error) { setErrMsg('No se pudo reordenar. Revisa tu conexión.'); return; }
+      apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
+    } else if (entry.kind === 'placesel') {
+      await patchSelections(entry.ids, { position: newPos });
+    }
   }
 
   // ── Lugares (place_selections) dentro del día: visitado / mover / quitar ──
@@ -200,16 +208,6 @@ export default function ItinerarioModule({ trip, identity }: {
 
   function toggleVisitedPlace(ids: string[], current: boolean) {
     return patchSelections(ids, { visited: !current });
-  }
-
-  async function movePlaceSel(key: string, ids: string[], dir: -1 | 1) {
-    const idx = entries.findIndex((e) => e.key === key);
-    const swapIdx = idx + dir;
-    if (idx < 0 || swapIdx < 0 || swapIdx >= entries.length) return;
-    const farIdx = idx + dir * 2;
-    const here = entries[swapIdx].sortNum;
-    const far = farIdx >= 0 && farIdx < entries.length ? entries[farIdx].sortNum : here + dir * 2;
-    await patchSelections(ids, { position: (here + far) / 2 });
   }
 
   /** Quita este día de los lugares (borra el date-id de hoy de preferred_dates). */
@@ -284,108 +282,25 @@ export default function ItinerarioModule({ trip, identity }: {
               <p className="text-sm mt-0.5">Toca + para agregar el primer plan</p>
             </div>
           )}
-          <AnimatePresence initial={false}>
-            {entries.map((e) =>
-              e.kind === 'item' ? (
-                <motion.div
-                  key={e.key}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  className={`rounded-2xl border p-4 flex items-start gap-2 ${e.item.done ? 'bg-gray-50 border-sand-dark' : 'bg-white border-sand-dark'}`}
-                >
-                  {/* Marcar visitado */}
-                  <button
-                    onClick={() => toggleDone(e.item)}
-                    aria-label={e.item.done ? `Desmarcar ${e.item.title}` : `Marcar ${e.item.title} como visitado`}
-                    className={`mt-0.5 shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors duration-200
-                      ${e.item.done ? 'bg-brasil-green border-brasil-green text-white' : 'border-gray-300 text-transparent'}`}
-                  >
-                    <Check className="w-4 h-4" aria-hidden />
-                  </button>
-                  <span className={`font-mono text-sm font-bold w-11 flex-shrink-0 pt-0.5 ${e.item.done ? 'text-gray-300' : 'text-brasil-green'}`}>
-                    {e.item.time ? e.item.time.slice(0, 5) : '—'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-semibold ${e.item.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>{e.item.title}</p>
-                    {e.item.note && <p className="text-sm text-gray-500">{e.item.note}</p>}
-                    <p className="text-[10px] text-gray-400 mt-1">
-                      {e.item.created_by === 'andres' ? 'Andrés' : 'Melisa'}
-                    </p>
-                  </div>
-                  {/* Reordenar */}
-                  <div className="flex flex-col -my-1">
-                    <button
-                      onClick={() => moveItem(e.key, -1)}
-                      aria-label={`Subir ${e.item.title}`}
-                      className="min-w-9 h-7 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200"
-                    >
-                      <ChevronUp className="w-4 h-4" aria-hidden />
-                    </button>
-                    <button
-                      onClick={() => moveItem(e.key, 1)}
-                      aria-label={`Bajar ${e.item.title}`}
-                      className="min-w-9 h-7 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200"
-                    >
-                      <ChevronDown className="w-4 h-4" aria-hidden />
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => removeItem(e.item.id)}
-                    aria-label={`Borrar ${e.item.title}`}
-                    className="min-w-9 min-h-9 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200"
-                  >
-                    <Trash2 className="w-4 h-4" aria-hidden />
-                  </button>
-                </motion.div>
-              ) : e.kind === 'ticket' ? (
-                <motion.div
-                  key={e.key}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  className="rounded-2xl bg-brasil-yellow/10 border border-brasil-yellow/50 p-4 flex items-start gap-3"
-                >
-                  <span className="font-mono text-sm text-amber-700 font-bold w-12 flex-shrink-0 pt-0.5">
-                    {e.ticket.time ? e.ticket.time.slice(0, 5) : '—'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <TicketIcon className="w-4 h-4 text-amber-600 flex-shrink-0" aria-hidden style={{ filter: 'brightness(0.85)' }} />
-                      <p className="font-semibold text-gray-800">{e.ticket.title}</p>
-                    </div>
-                    {e.ticket.note && <p className="text-sm text-gray-500 mt-0.5">{e.ticket.note}</p>}
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700/80">Experiencia</span>
-                      {e.ticket.file_path && (
-                        <a
-                          href={docUrl(e.ticket.file_path)} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-brasil-green"
-                        >
-                          <FileText className="w-3.5 h-3.5" aria-hidden /> Ver boleta
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ) : e.kind === 'match' ? (
-                <MatchRow key={e.key} match={e.match} />
-              ) : e.kind === 'flight' ? (
-                <FlightRow key={e.key} flight={e.flight} />
-              ) : e.kind === 'hotel' ? (
-                <HotelRow key={e.key} hotel={e.hotel} tipo={e.tipo} />
-              ) : (
-                <PlaceSelRow
-                  key={e.key} name={e.name} who={e.who} visited={e.visited}
-                  onToggle={() => toggleVisitedPlace(e.ids, e.visited)}
-                  onUp={() => movePlaceSel(e.key, e.ids, -1)}
-                  onDown={() => movePlaceSel(e.key, e.ids, 1)}
-                  onRemove={() => removePlaceSelDay(e.ids)}
-                />
-              ),
-            )}
-          </AnimatePresence>
+          {!loading && entries.length > 0 && (
+            <Reorder.Group as="div" axis="y" values={displayKeys} onReorder={setLocalOrder} className="space-y-2">
+              {displayKeys.map((k) => {
+                const e = byKey.get(k);
+                if (!e) return null;
+                return (
+                  <DayRow
+                    key={k}
+                    entry={e}
+                    onDragEnd={() => persistDrag(e, displayKeys)}
+                    onToggleDone={() => { if (e.kind === 'item') toggleDone(e.item); }}
+                    onRemoveItem={() => { if (e.kind === 'item') removeItem(e.item.id); }}
+                    onTogglePlace={() => { if (e.kind === 'placesel') toggleVisitedPlace(e.ids, e.visited); }}
+                    onRemovePlace={() => { if (e.kind === 'placesel') removePlaceSelDay(e.ids); }}
+                  />
+                );
+              })}
+            </Reorder.Group>
+          )}
         </div>
 
         {/* Form agregar */}
@@ -556,51 +471,125 @@ function HotelRow({ hotel: h, tipo }: { hotel: Hotel; tipo: 'in' | 'out' }) {
   );
 }
 
-/** Lugar marcado en Lugares con este día como preferido. Se puede marcar como
- *  visitado, reordenar y quitar del día (sin desmarcarlo en Lugares). */
-function PlaceSelRow({ name, who, visited, onToggle, onUp, onDown, onRemove }: {
-  name: string; who: TravelerId[]; visited: boolean;
-  onToggle: () => void; onUp: () => void; onDown: () => void; onRemove: () => void;
+/** Fila del día como Reorder.Item. Planes y lugares se arrastran por el handle
+ *  (≡, estilo Spotify); el resto (experiencias, partidos, vuelos, hoteles) va
+ *  fijo por hora. */
+function DayRow({ entry: e, onDragEnd, onToggleDone, onRemoveItem, onTogglePlace, onRemovePlace }: {
+  entry: DayEntry;
+  onDragEnd: () => void;
+  onToggleDone: () => void; onRemoveItem: () => void;
+  onTogglePlace: () => void; onRemovePlace: () => void;
 }) {
-  const quienes = who.map((t) => (t === 'andres' ? 'Andrés' : 'Melisa')).join(' y ');
+  const controls = useDragControls();
+  const draggable = e.kind === 'item' || e.kind === 'placesel';
+  const Handle = draggable ? (
+    <button
+      aria-label="Reordenar (mantené presionado y arrastrá)"
+      onPointerDown={(ev) => { ev.preventDefault(); controls.start(ev); }}
+      className="touch-none cursor-grab active:cursor-grabbing min-w-8 min-h-9 -my-1 flex items-center justify-center text-gray-300 hover:text-gray-500"
+    >
+      <GripVertical className="w-4 h-4" aria-hidden />
+    </button>
+  ) : null;
+
+  const cls =
+    e.kind === 'item'
+      ? `rounded-2xl border p-4 flex items-start gap-2 ${e.item.done ? 'bg-gray-50 border-sand-dark' : 'bg-white border-sand-dark'}`
+      : e.kind === 'placesel'
+        ? `rounded-2xl border p-4 flex items-start gap-2 ${e.visited ? 'bg-gray-50 border-sand-dark' : 'bg-rose-50 border-rose-200'}`
+        : e.kind === 'ticket'
+          ? 'rounded-2xl bg-brasil-yellow/10 border border-brasil-yellow/50 p-4 flex items-start gap-3'
+          : ''; // match/flight/hotel traen su propia tarjeta
+
   return (
-    <motion.div
+    <Reorder.Item
+      value={e.key}
+      dragListener={false}
+      dragControls={controls}
+      onDragEnd={onDragEnd}
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
-      className={`rounded-2xl border p-4 flex items-start gap-2 ${visited ? 'bg-gray-50 border-sand-dark' : 'bg-rose-50 border-rose-200'}`}
+      className={cls}
     >
-      <button
-        onClick={onToggle}
-        aria-label={visited ? `Desmarcar ${name}` : `Marcar ${name} como visitado`}
-        className={`mt-0.5 shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors duration-200
-          ${visited ? 'bg-brasil-green border-brasil-green text-white' : 'border-rose-300 text-transparent'}`}
-      >
-        <Check className="w-4 h-4" aria-hidden />
-      </button>
-      <span className="text-sm w-7 flex-shrink-0 pt-0.5 text-center" aria-hidden>📍</span>
-      <div className="flex-1 min-w-0">
-        <p className={`font-semibold ${visited ? 'line-through text-gray-400' : 'text-gray-800'}`}>{name}</p>
-        <span className="text-[10px] font-bold uppercase tracking-wide text-rose-500/80">
-          ❤️ Quieren ir · {quienes}
-        </span>
-      </div>
-      <div className="flex flex-col -my-1">
-        <button onClick={onUp} aria-label={`Subir ${name}`}
-          className="min-w-9 h-7 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200">
-          <ChevronUp className="w-4 h-4" aria-hidden />
-        </button>
-        <button onClick={onDown} aria-label={`Bajar ${name}`}
-          className="min-w-9 h-7 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200">
-          <ChevronDown className="w-4 h-4" aria-hidden />
-        </button>
-      </div>
-      <button onClick={onRemove} aria-label={`Quitar ${name} del día`}
-        className="min-w-9 min-h-9 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200">
-        <Trash2 className="w-4 h-4" aria-hidden />
-      </button>
-    </motion.div>
+      {e.kind === 'item' ? (
+        <>
+          <button
+            onClick={onToggleDone}
+            aria-label={e.item.done ? `Desmarcar ${e.item.title}` : `Marcar ${e.item.title} como visitado`}
+            className={`mt-0.5 shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors duration-200
+              ${e.item.done ? 'bg-brasil-green border-brasil-green text-white' : 'border-gray-300 text-transparent'}`}
+          >
+            <Check className="w-4 h-4" aria-hidden />
+          </button>
+          <span className={`font-mono text-sm font-bold w-10 flex-shrink-0 pt-0.5 ${e.item.done ? 'text-gray-300' : 'text-brasil-green'}`}>
+            {e.item.time ? e.item.time.slice(0, 5) : '—'}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className={`font-semibold ${e.item.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>{e.item.title}</p>
+            {e.item.note && <p className="text-sm text-gray-500">{e.item.note}</p>}
+            <p className="text-[10px] text-gray-400 mt-1">{e.item.created_by === 'andres' ? 'Andrés' : 'Melisa'}</p>
+          </div>
+          {Handle}
+          <button onClick={onRemoveItem} aria-label={`Borrar ${e.item.title}`}
+            className="min-w-8 min-h-9 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200">
+            <Trash2 className="w-4 h-4" aria-hidden />
+          </button>
+        </>
+      ) : e.kind === 'placesel' ? (
+        <>
+          <button
+            onClick={onTogglePlace}
+            aria-label={e.visited ? `Desmarcar ${e.name}` : `Marcar ${e.name} como visitado`}
+            className={`mt-0.5 shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors duration-200
+              ${e.visited ? 'bg-brasil-green border-brasil-green text-white' : 'border-rose-300 text-transparent'}`}
+          >
+            <Check className="w-4 h-4" aria-hidden />
+          </button>
+          <span className="text-sm w-6 flex-shrink-0 pt-0.5 text-center" aria-hidden>📍</span>
+          <div className="flex-1 min-w-0">
+            <p className={`font-semibold ${e.visited ? 'line-through text-gray-400' : 'text-gray-800'}`}>{e.name}</p>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-rose-500/80">
+              ❤️ Quieren ir · {e.who.map((t) => (t === 'andres' ? 'Andrés' : 'Melisa')).join(' y ')}
+            </span>
+          </div>
+          {Handle}
+          <button onClick={onRemovePlace} aria-label={`Quitar ${e.name} del día`}
+            className="min-w-8 min-h-9 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200">
+            <Trash2 className="w-4 h-4" aria-hidden />
+          </button>
+        </>
+      ) : e.kind === 'ticket' ? (
+        <>
+          <span className="font-mono text-sm text-amber-700 font-bold w-12 flex-shrink-0 pt-0.5">
+            {e.ticket.time ? e.ticket.time.slice(0, 5) : '—'}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <TicketIcon className="w-4 h-4 text-amber-600 flex-shrink-0" aria-hidden style={{ filter: 'brightness(0.85)' }} />
+              <p className="font-semibold text-gray-800">{e.ticket.title}</p>
+            </div>
+            {e.ticket.note && <p className="text-sm text-gray-500 mt-0.5">{e.ticket.note}</p>}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700/80">Experiencia</span>
+              {e.ticket.file_path && (
+                <a href={docUrl(e.ticket.file_path)} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-brasil-green">
+                  <FileText className="w-3.5 h-3.5" aria-hidden /> Ver boleta
+                </a>
+              )}
+            </div>
+          </div>
+        </>
+      ) : e.kind === 'match' ? (
+        <MatchRow match={e.match} />
+      ) : e.kind === 'flight' ? (
+        <FlightRow flight={e.flight} />
+      ) : (
+        <HotelRow hotel={e.hotel} tipo={e.tipo} />
+      )}
+    </Reorder.Item>
   );
 }
 

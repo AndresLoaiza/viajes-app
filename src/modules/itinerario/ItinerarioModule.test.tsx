@@ -189,14 +189,11 @@ describe('ItinerarioModule', () => {
     expect(op.patch.done).toBe(true);
   });
 
-  it('reordenar (bajar) un plan sin hora → update position numérica', async () => {
-    stores.itinerary_items = [item({ id: 'i1', title: 'Uno', time: null }), item({ id: 'i2', title: 'Dos', time: null })];
+  it('los planes traen handle para arrastrar/reordenar (estilo Spotify)', () => {
+    stores.itinerary_items = [item({ id: 'i1', title: 'Uno', time: null })];
     renderModule();
-    fireEvent.click(screen.getByRole('button', { name: 'Bajar Uno' }));
-    await waitFor(() => expect(mutate).toHaveBeenCalled());
-    const op = mutate.mock.calls[0][0] as { type: string; patch: { position: number } };
-    expect(op.type).toBe('update');
-    expect(typeof op.patch.position).toBe('number');
+    // el handle de drag está presente (el reordenar es por arrastre, no botones)
+    expect(screen.getAllByRole('button', { name: /Reordenar/ }).length).toBeGreaterThan(0);
   });
 
   it('borrar plan (confirm) → mutate delete', async () => {

@@ -285,6 +285,15 @@ const rio: CityConfig = {
       category: 'gastronomia',
     },
     {
+      id: 'lasai',
+      name: 'Restaurante Lasai',
+      description: 'Alta cocina contemporánea en Botafogo (chef Rafa Costa e Silva). Menú degustación con ingredientes de su propia huerta; estrella Michelin y de los mejores de Latinoamérica. Reservar con anticipación.',
+      tip: 'Reserva obligatoria, con semanas de anticipación.',
+      images: [],
+      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Lasai%2C%20Rua%20Conde%20de%20Iraj%C3%A1%20191%2C%20Botafogo%2C%20Rio%20de%20Janeiro',
+      category: 'gastronomia',
+    },
+    {
       id: 'carretao',
       name: 'Carretão (Carnes)',
       description: 'Churrascaria brasileña por kilo. La mejor carne asada de la ciudad.',

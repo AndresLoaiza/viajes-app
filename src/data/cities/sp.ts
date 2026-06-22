@@ -321,6 +321,14 @@ const sp: CityConfig = {
       tip: 'Está dentro del Farol Santander.',
     },
     {
+      id: 'bacio-di-latte',
+      name: 'Bacio di Latte',
+      description: 'Gelateria italiana, de las más queridas de São Paulo. Helados artesanales (pistacho, stracciatella, dulce de leche). Varias sedes; la de Oscar Freire es clásica.',
+      images: [],
+      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Bacio%20di%20Latte%2C%20Rua%20Oscar%20Freire%2C%20S%C3%A3o%20Paulo',
+      category: 'gastronomia',
+    },
+    {
       id: 'ibirapuera',
       name: 'Parque do Ibirapuera',
       description: 'El pulmón verde de SP: lagos, ciclovías, museos y los pabellones de Niemeyer. El Central Park paulistano.',
