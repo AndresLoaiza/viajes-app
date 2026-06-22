@@ -144,5 +144,7 @@ export interface TripPlaceSelection {
   selected_by: TravelerId;
   note: string | null;
   preferred_dates: string[];   // ids de TravelDate (ej. 'sat-27') preferidos
+  position: number | null;     // orden manual del lugar dentro del día
+  visited: boolean;            // ya fuimos
   created_at: string;
 }

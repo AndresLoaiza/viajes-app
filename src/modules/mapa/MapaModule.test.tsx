@@ -61,7 +61,7 @@ const hotel = (o: Partial<Hotel> = {}): Hotel => ({
 });
 const selection = (o: Partial<TripPlaceSelection> = {}): TripPlaceSelection => ({
   id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'p1', selected_by: 'andres',
-  note: null, preferred_dates: [], created_at: '', ...o,
+  note: null, preferred_dates: [], position: null, visited: false, created_at: '', ...o,
 });
 const itinItem = (o: Partial<ItineraryItem> = {}): ItineraryItem => ({
   id: 'i1', trip_id: 'brasil-2026', date: '2026-06-25', time: '10:00', title: 'Tour',

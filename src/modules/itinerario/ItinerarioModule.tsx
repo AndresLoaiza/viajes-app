@@ -66,8 +66,12 @@ export default function ItinerarioModule({ trip, identity }: {
   // de TravelDate ('sat-27') codifica el día del mes; se cruza con el nº del día
   // activo y la ciudad. Se actualiza solo cuando marcan el día en Lugares.
   const activeDayNum = activeDate ? Number(activeDate.slice(8)) : NaN;
+  type PlaceSelDay = {
+    place_id: string; name: string; who: TravelerId[];
+    ids: string[]; visited: boolean; position: number | null;
+  };
   const dayPlaceSel = (() => {
-    if (!day) return [] as { place_id: string; name: string; who: TravelerId[] }[];
+    if (!day) return [] as PlaceSelDay[];
     // Lugares cuyo día preferido (de cualquiera) cae hoy.
     const placesHoy = new Set<string>();
     placeSels.forEach((s) => {
@@ -77,12 +81,17 @@ export default function ItinerarioModule({ trip, identity }: {
     });
     const placeName = (pid: string) =>
       trip.cities.find((c) => c.id === day.cityId)?.places.find((p) => p.id === pid)?.name ?? pid;
-    // who = todos los que eligieron ese lugar (aunque no hayan fijado el día).
-    return [...placesHoy].map((place_id) => {
-      const who = [...new Set(
-        placeSels.filter((s) => s.city_id === day.cityId && s.place_id === place_id).map((s) => s.selected_by),
-      )];
-      return { place_id, name: placeName(place_id), who };
+    return [...placesHoy].map((place_id): PlaceSelDay => {
+      const rows = placeSels.filter((s) => s.city_id === day.cityId && s.place_id === place_id);
+      const positions = rows.map((r) => r.position).filter((p): p is number => p != null);
+      return {
+        place_id,
+        name: placeName(place_id),
+        who: [...new Set(rows.map((r) => r.selected_by))],   // todos los que lo eligieron
+        ids: rows.map((r) => r.id),
+        visited: rows.some((r) => r.visited),
+        position: positions.length ? Math.min(...positions) : null,
+      };
     });
   })();
   type Entry =
@@ -91,13 +100,16 @@ export default function ItinerarioModule({ trip, identity }: {
     | { kind: 'match'; key: string; sortNum: number; match: Partido }
     | { kind: 'flight'; key: string; sortNum: number; flight: Flight }
     | { kind: 'hotel'; key: string; sortNum: number; hotel: Hotel; tipo: 'in' | 'out' }
-    | { kind: 'placesel'; key: string; sortNum: number; name: string; who: TravelerId[] };
+    | { kind: 'placesel'; key: string; sortNum: number; name: string; who: TravelerId[]; ids: string[]; visited: boolean };
   const entries: Entry[] = [
     ...items.map((i): Entry => ({ kind: 'item', key: i.id, sortNum: itemSortNum(i), item: i })),
     ...dayTickets.map((t): Entry => ({ kind: 'ticket', key: `tk-${t.id}`, sortNum: toMin(t.time), ticket: t })),
     ...dayMatches.map((m): Entry => ({ kind: 'match', key: `wc-${m.id}`, sortNum: toMin(horaLocalPartido(m.fecha_hora)), match: m })),
     ...dayFlights.map((f): Entry => ({ kind: 'flight', key: `fl-${f.id}`, sortNum: toMin(tsTime(f.departs_at)), flight: f })),
-    ...dayPlaceSel.map((ps): Entry => ({ kind: 'placesel', key: `ps-${ps.place_id}`, sortNum: 30, name: ps.name, who: ps.who })),
+    ...dayPlaceSel.map((ps): Entry => ({
+      kind: 'placesel', key: `ps-${ps.place_id}`, sortNum: ps.position ?? 9100,
+      name: ps.name, who: ps.who, ids: ps.ids, visited: ps.visited,
+    })),
     // Check-out al inicio del día (te vas en la mañana); check-in al final (llegas).
     ...dayHotels.flatMap((h): Entry[] => [
       ...(h.check_out === activeDate ? [{ kind: 'hotel', key: `ho-out-${h.id}`, sortNum: -10, hotel: h, tipo: 'out' } as Entry] : []),
@@ -171,6 +183,46 @@ export default function ItinerarioModule({ trip, identity }: {
     });
     if (error) { setErrMsg('No se pudo reordenar. Revisa tu conexión.'); return; }
     apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
+  }
+
+  // ── Lugares (place_selections) dentro del día: visitado / mover / quitar ──
+  /** Aplica un patch a varias filas de place_selections (las del lugar). */
+  async function patchSelections(ids: string[], patch: Record<string, unknown>) {
+    setErrMsg('');
+    for (const id of ids) {
+      const orig = placeSels.find((s) => s.id === id);
+      const { data, error } = await mutate({ table: 'place_selections', type: 'update', id, patch });
+      if (error) { setErrMsg('No se pudo guardar. Revisa tu conexión.'); return false; }
+      apply({ eventType: 'UPDATE', new: data ?? { ...orig, ...patch }, old: {} });
+    }
+    return true;
+  }
+
+  function toggleVisitedPlace(ids: string[], current: boolean) {
+    return patchSelections(ids, { visited: !current });
+  }
+
+  async function movePlaceSel(key: string, ids: string[], dir: -1 | 1) {
+    const idx = entries.findIndex((e) => e.key === key);
+    const swapIdx = idx + dir;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= entries.length) return;
+    const farIdx = idx + dir * 2;
+    const here = entries[swapIdx].sortNum;
+    const far = farIdx >= 0 && farIdx < entries.length ? entries[farIdx].sortNum : here + dir * 2;
+    await patchSelections(ids, { position: (here + far) / 2 });
+  }
+
+  /** Quita este día de los lugares (borra el date-id de hoy de preferred_dates). */
+  async function removePlaceSelDay(ids: string[]) {
+    if (!confirm('¿Quitar este lugar del día? (sigue marcado en Lugares)')) return;
+    setErrMsg('');
+    for (const id of ids) {
+      const orig = placeSels.find((s) => s.id === id);
+      const nuevas = (orig?.preferred_dates ?? []).filter((d) => Number(d.split('-').pop()) !== activeDayNum);
+      const { data, error } = await mutate({ table: 'place_selections', type: 'update', id, patch: { preferred_dates: nuevas } });
+      if (error) { setErrMsg('No se pudo quitar. Revisa tu conexión.'); return; }
+      apply({ eventType: 'UPDATE', new: data ?? { ...orig, preferred_dates: nuevas }, old: {} });
+    }
   }
 
   if (!trip.days.length) return null;
@@ -324,7 +376,13 @@ export default function ItinerarioModule({ trip, identity }: {
               ) : e.kind === 'hotel' ? (
                 <HotelRow key={e.key} hotel={e.hotel} tipo={e.tipo} />
               ) : (
-                <PlaceSelRow key={e.key} name={e.name} who={e.who} />
+                <PlaceSelRow
+                  key={e.key} name={e.name} who={e.who} visited={e.visited}
+                  onToggle={() => toggleVisitedPlace(e.ids, e.visited)}
+                  onUp={() => movePlaceSel(e.key, e.ids, -1)}
+                  onDown={() => movePlaceSel(e.key, e.ids, 1)}
+                  onRemove={() => removePlaceSelDay(e.ids)}
+                />
               ),
             )}
           </AnimatePresence>
@@ -498,23 +556,50 @@ function HotelRow({ hotel: h, tipo }: { hotel: Hotel; tipo: 'in' | 'out' }) {
   );
 }
 
-/** Lugar marcado en Lugares con este día como preferido (read-only). */
-function PlaceSelRow({ name, who }: { name: string; who: TravelerId[] }) {
+/** Lugar marcado en Lugares con este día como preferido. Se puede marcar como
+ *  visitado, reordenar y quitar del día (sin desmarcarlo en Lugares). */
+function PlaceSelRow({ name, who, visited, onToggle, onUp, onDown, onRemove }: {
+  name: string; who: TravelerId[]; visited: boolean;
+  onToggle: () => void; onUp: () => void; onDown: () => void; onRemove: () => void;
+}) {
   const quienes = who.map((t) => (t === 'andres' ? 'Andrés' : 'Melisa')).join(' y ');
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
-      className="rounded-2xl bg-rose-50 border border-rose-200 p-4 flex items-start gap-3"
+      className={`rounded-2xl border p-4 flex items-start gap-2 ${visited ? 'bg-gray-50 border-sand-dark' : 'bg-rose-50 border-rose-200'}`}
     >
-      <span className="font-mono text-sm text-rose-500 font-bold w-12 flex-shrink-0 pt-0.5" aria-hidden>📍</span>
+      <button
+        onClick={onToggle}
+        aria-label={visited ? `Desmarcar ${name}` : `Marcar ${name} como visitado`}
+        className={`mt-0.5 shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors duration-200
+          ${visited ? 'bg-brasil-green border-brasil-green text-white' : 'border-rose-300 text-transparent'}`}
+      >
+        <Check className="w-4 h-4" aria-hidden />
+      </button>
+      <span className="text-sm w-7 flex-shrink-0 pt-0.5 text-center" aria-hidden>📍</span>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-800">{name}</p>
+        <p className={`font-semibold ${visited ? 'line-through text-gray-400' : 'text-gray-800'}`}>{name}</p>
         <span className="text-[10px] font-bold uppercase tracking-wide text-rose-500/80">
           ❤️ Quieren ir · {quienes}
         </span>
       </div>
+      <div className="flex flex-col -my-1">
+        <button onClick={onUp} aria-label={`Subir ${name}`}
+          className="min-w-9 h-7 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200">
+          <ChevronUp className="w-4 h-4" aria-hidden />
+        </button>
+        <button onClick={onDown} aria-label={`Bajar ${name}`}
+          className="min-w-9 h-7 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200">
+          <ChevronDown className="w-4 h-4" aria-hidden />
+        </button>
+      </div>
+      <button onClick={onRemove} aria-label={`Quitar ${name} del día`}
+        className="min-w-9 min-h-9 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200">
+        <Trash2 className="w-4 h-4" aria-hidden />
+      </button>
     </motion.div>
   );
 }

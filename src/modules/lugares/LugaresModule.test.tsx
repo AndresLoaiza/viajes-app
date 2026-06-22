@@ -53,7 +53,7 @@ const trip = { id: 'brasil-2026', cities: [city] } as unknown as TripConfig;
 
 const sel = (over: Partial<TripPlaceSelection> = {}): TripPlaceSelection => ({
   id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'p1',
-  selected_by: 'andres', note: null, preferred_dates: [], created_at: '2026-06-01T00:00:00Z', ...over,
+  selected_by: 'andres', note: null, preferred_dates: [], position: null, visited: false, created_at: '2026-06-01T00:00:00Z', ...over,
 });
 
 function openCategory() {

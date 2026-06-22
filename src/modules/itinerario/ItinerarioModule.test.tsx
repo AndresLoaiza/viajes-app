@@ -128,6 +128,32 @@ describe('ItinerarioModule', () => {
     expect(screen.getByText(/Quieren ir · Andrés y Melisa/)).toBeInTheDocument();
   });
 
+  it('marcar lugar como visitado en Días → update visited', async () => {
+    stores.place_selections = [{
+      id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'cristo',
+      selected_by: 'andres', note: null, preferred_dates: ['thu-25'], position: null, visited: false, created_at: '',
+    }];
+    renderModule();
+    fireEvent.click(screen.getByRole('button', { name: /Marcar Cristo Redentor como visitado/ }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const op = mutate.mock.calls[0][0] as { table: string; patch: { visited: boolean } };
+    expect(op.table).toBe('place_selections');
+    expect(op.patch.visited).toBe(true);
+  });
+
+  it('quitar lugar del día → update preferred_dates sin ese día', async () => {
+    stores.place_selections = [{
+      id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'cristo',
+      selected_by: 'andres', note: null, preferred_dates: ['thu-25', 'fri-26'], position: null, visited: false, created_at: '',
+    }];
+    renderModule(); // activo = 25
+    fireEvent.click(screen.getByRole('button', { name: /Quitar Cristo Redentor del día/ }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const op = mutate.mock.calls[0][0] as { type: string; patch: { preferred_dates: string[] } };
+    expect(op.type).toBe('update');
+    expect(op.patch.preferred_dates).toEqual(['fri-26']); // quita el 25, deja el 26
+  });
+
   it('lugar con día preferido distinto NO aparece hoy', () => {
     stores.place_selections = [{
       id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'cristo',
