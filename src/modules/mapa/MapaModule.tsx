@@ -11,7 +11,6 @@ import { formatDayEs } from '../../lib/dates';
 import type {
   TripConfig, TravelerId, Photo, Hotel, ItineraryItem, TripPlaceSelection,
 } from '../../types/trip';
-import type { Place } from '../../types/city';
 
 type LayerKey = 'fotos' | 'hoteles' | 'lugares' | 'itinerario';
 
@@ -56,10 +55,6 @@ export default function MapaModule({ trip }: { trip: TripConfig; identity: Trave
   const selections = useTable<TripPlaceSelection>('place_selections', trip.id).rows;
 
   const city = trip.cities.find((c) => c.id === cityId);
-  const placesById = useMemo(
-    () => new Map<string, Place>(trip.cities.flatMap((c) => c.places).map((p) => [p.id, p])),
-    [trip],
-  );
 
   const pins = useMemo<Pin[]>(() => {
     const out: Pin[] = [];
@@ -91,26 +86,33 @@ export default function MapaModule({ trip }: { trip: TripConfig; identity: Trave
         });
     }
 
-    if (on.lugares) {
+    if (on.lugares && city) {
+      // Todos los lugares del catálogo de la ciudad (con coordenadas), para ver
+      // qué hay cerca. Los marcados muestran de quién es el corazón.
       const byPlace = new Map<string, Set<TravelerId>>();
       selections
-        .filter((s) => s.city_id === cityId && placeCoords[s.place_id])
+        .filter((s) => s.city_id === cityId)
         .forEach((s) => {
           const set = byPlace.get(s.place_id) ?? new Set<TravelerId>();
           set.add(s.selected_by);
           byPlace.set(s.place_id, set);
         });
-      byPlace.forEach((who, placeId) => {
-        const [lat, lng] = placeCoords[placeId];
-        const place = placesById.get(placeId);
-        const name = place ? esc(place.name) : placeId;
-        const hearts = [...who].map(travelerName).join(' y ');
-        const maps = place?.mapsUrl
+      city.places.forEach((place) => {
+        const coords = placeCoords[place.id];
+        if (!coords) return;
+        const [lat, lng] = coords;
+        const name = esc(place.name);
+        const who = byPlace.get(place.id);
+        const estado = who
+          ? `<div style="font-size:12px;color:#059669">❤️ ${[...who].map(travelerName).join(' y ')}</div>`
+          : '<div style="font-size:12px;color:#888">Sin marcar — toca en Lugares para elegirlo</div>';
+        const tip = place.tip ? `<div style="font-size:11px;color:#777;margin-top:2px">💡 ${esc(place.tip)}</div>` : '';
+        const maps = place.mapsUrl
           ? `<a href="${esc(place.mapsUrl)}" target="_blank" rel="noopener" style="font-size:12px;color:#059669">Ver en Maps ↗</a>`
           : '';
         out.push({
           lat, lng, kind: 'lugares',
-          html: `<strong style="font-size:13px">📍 ${name}</strong><div style="font-size:12px;color:#555">❤️ ${hearts}</div>${maps}`,
+          html: `<strong style="font-size:13px">📍 ${name}</strong>${estado}${tip}${maps}`,
         });
       });
     }
@@ -129,7 +131,7 @@ export default function MapaModule({ trip }: { trip: TripConfig; identity: Trave
     }
 
     return out;
-  }, [on, photos, hotels, selections, items, cityId, hasCities, city, placesById]);
+  }, [on, photos, hotels, selections, items, cityId, hasCities, city]);
 
   // ── Leaflet: init una vez ───────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);

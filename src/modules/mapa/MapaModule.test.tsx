@@ -77,8 +77,16 @@ describe('MapaModule', () => {
     stores.photos = []; stores.hotels = []; stores.itinerary_items = []; stores.place_selections = [];
   });
 
-  it('sin pines → overlay "Nada que mostrar"', () => {
+  it('lugares: muestra todos los del catálogo con coords aunque no estén marcados', () => {
+    // sin selecciones, el lugar del catálogo (p1) igual aparece
     render(<MapaModule trip={trip} identity="andres" />);
+    expect(chip('Lugares')).toHaveTextContent('(1)');
+  });
+
+  it('sin pines (capas apagadas) → overlay "Nada que mostrar"', () => {
+    render(<MapaModule trip={trip} identity="andres" />);
+    // apagar las 4 capas (lugares siempre tiene el catálogo)
+    ['Fotos', 'Hoteles', 'Lugares', 'Itinerario'].forEach((l) => fireEvent.click(chip(l)));
     expect(screen.getByText(/Nada que mostrar acá todavía/)).toBeInTheDocument();
   });
 
