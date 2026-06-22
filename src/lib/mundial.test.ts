@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  fechaLocalPartido, horaLocalPartido, porDefinir, etiquetaFase, marcador, partidosDeFecha,
+  fechaLocalPartido, horaLocalPartido, porDefinir, etiquetaFase, marcador, partidosDeFecha, esDeInteres,
   type Partido,
 } from './mundial';
 
@@ -37,6 +37,21 @@ describe('mundial helpers', () => {
     expect(marcador(p())).toBeNull();
     expect(marcador(p({ gol_local_real: 2, gol_visitante_real: 1 }))).toBe('2 - 1');
     expect(marcador(p({ gol_local_real: 0, gol_visitante_real: 0 }))).toBe('0 - 0');
+  });
+
+  it('esDeInteres: solo Colombia/Brasil; TBD se deja', () => {
+    expect(esDeInteres(p({ equipo_local: 'Colombia', equipo_visitante: 'Portugal' }))).toBe(true);
+    expect(esDeInteres(p({ equipo_local: 'Brazil', equipo_visitante: 'Croatia' }))).toBe(true);
+    expect(esDeInteres(p({ equipo_local: 'Japan', equipo_visitante: 'Sweden' }))).toBe(false);
+    expect(esDeInteres(p({ equipo_local: 'Por definir', equipo_visitante: 'Por definir', fase: 'eliminacion', grupo: null }))).toBe(true);
+  });
+
+  it('partidosDeFecha excluye los que no son Colombia/Brasil', () => {
+    const lista = [
+      p({ id: 'col', equipo_local: 'Colombia', equipo_visitante: 'Portugal' }),
+      p({ id: 'otro', equipo_local: 'Japan', equipo_visitante: 'Sweden' }),
+    ];
+    expect(partidosDeFecha(lista, '2026-06-25').map((x) => x.id)).toEqual(['col']);
   });
 
   it('partidosDeFecha filtra por fecha local y ordena por hora', () => {

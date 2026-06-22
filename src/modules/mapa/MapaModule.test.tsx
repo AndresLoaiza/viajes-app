@@ -65,7 +65,7 @@ const selection = (o: Partial<TripPlaceSelection> = {}): TripPlaceSelection => (
 });
 const itinItem = (o: Partial<ItineraryItem> = {}): ItineraryItem => ({
   id: 'i1', trip_id: 'brasil-2026', date: '2026-06-25', time: '10:00', title: 'Tour',
-  place_id: 'p1', note: null, created_by: 'andres', created_at: '', ...o,
+  place_id: 'p1', note: null, done: false, position: null, created_by: 'andres', created_at: '', ...o,
 });
 
 function chip(label: string) {

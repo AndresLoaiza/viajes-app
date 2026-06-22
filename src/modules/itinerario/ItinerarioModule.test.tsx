@@ -51,7 +51,7 @@ const trip = {
 
 const item = (over: Partial<ItineraryItem> = {}): ItineraryItem => ({
   id: 'i1', trip_id: 'brasil-2026', date: '2026-06-25', time: '10:00', title: 'Playa',
-  place_id: null, note: 'Llevar bloqueador', created_by: 'andres', created_at: '2026-06-01T00:00:00Z', ...over,
+  place_id: null, note: 'Llevar bloqueador', done: false, position: null, created_by: 'andres', created_at: '2026-06-01T00:00:00Z', ...over,
 });
 const ticket = (over: Partial<Ticket> = {}): Ticket => ({
   id: 't1', trip_id: 'brasil-2026', title: 'Cristo Redentor', date: '2026-06-25', time: '08:00',
@@ -151,6 +151,26 @@ describe('ItinerarioModule', () => {
     expect(op.row.date).toBe('2026-06-25');
     expect(op.row.time).toBe('15:00');
     expect(apply).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'INSERT' }));
+  });
+
+  it('marcar plan como visitado → update done', async () => {
+    stores.itinerary_items = [item()];
+    renderModule();
+    fireEvent.click(screen.getByRole('button', { name: /Marcar Playa como visitado/ }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const op = mutate.mock.calls[0][0] as { type: string; patch: { done: boolean } };
+    expect(op.type).toBe('update');
+    expect(op.patch.done).toBe(true);
+  });
+
+  it('reordenar (bajar) un plan sin hora → update position numérica', async () => {
+    stores.itinerary_items = [item({ id: 'i1', title: 'Uno', time: null }), item({ id: 'i2', title: 'Dos', time: null })];
+    renderModule();
+    fireEvent.click(screen.getByRole('button', { name: 'Bajar Uno' }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const op = mutate.mock.calls[0][0] as { type: string; patch: { position: number } };
+    expect(op.type).toBe('update');
+    expect(typeof op.patch.position).toBe('number');
   });
 
   it('borrar plan (confirm) → mutate delete', async () => {

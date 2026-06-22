@@ -54,10 +54,21 @@ export function marcador(p: Partido): string | null {
   return `${p.gol_local_real} - ${p.gol_visitante_real}`;
 }
 
-/** Partidos de una fecha local concreta ('YYYY-MM-DD'), ordenados por hora. */
+const EQUIPOS_INTERES = /brasil|brazil|colombia/i;
+
+/** Solo nos interesan Colombia y Brasil. Los de eliminación "Por definir" se
+ *  dejan (cualquiera de los dos podría avanzar); ya con equipos se filtran. */
+export function esDeInteres(p: Partido): boolean {
+  return porDefinir(p)
+    || EQUIPOS_INTERES.test(p.equipo_local)
+    || EQUIPOS_INTERES.test(p.equipo_visitante);
+}
+
+/** Partidos de una fecha local concreta ('YYYY-MM-DD'), ordenados por hora.
+ *  Filtra a los de interés (Colombia/Brasil + eliminación por definir). */
 export function partidosDeFecha(partidos: Partido[], fecha: string): Partido[] {
   return partidos
-    .filter((p) => fechaLocalPartido(p.fecha_hora) === fecha)
+    .filter((p) => fechaLocalPartido(p.fecha_hora) === fecha && esDeInteres(p))
     .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora));
 }
 

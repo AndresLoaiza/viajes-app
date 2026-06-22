@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, BedDouble, FileText, MoveRight, Plane, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
+import { AlertTriangle, BedDouble, Check, ChevronDown, ChevronUp, FileText, MoveRight, Plane, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTable } from '../../lib/realtime';
 import { mutate, uuid } from '../../lib/mutate';
@@ -45,9 +45,12 @@ export default function ItinerarioModule({ trip, identity }: {
 
   const day = trip.days.find((d) => d.date === activeDate);
   const ciudad = day ? trip.cities.find((c) => c.id === day.cityId) : null;
-  const items = rows
-    .filter((i) => i.date === activeDate)
-    .sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99'));
+  const items = rows.filter((i) => i.date === activeDate);
+  // 'HH:MM' → minutos. Sin hora → al final del día (pero ordenables a mano).
+  const toMin = (t: string | null | undefined) =>
+    t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : 9000;
+  // Orden de un plan: posición manual si existe; si no, por hora.
+  const itemSortNum = (i: ItineraryItem) => (i.position ?? toMin(i.time));
 
   // Experiencias (tickets) del día — se gestionan en "Plan"; aquí van read-only,
   // mezcladas con los planes manuales y ordenadas por hora.
@@ -82,24 +85,24 @@ export default function ItinerarioModule({ trip, identity }: {
     });
   })();
   type Entry =
-    | { kind: 'item'; key: string; sort: string; item: ItineraryItem }
-    | { kind: 'ticket'; key: string; sort: string; ticket: Ticket }
-    | { kind: 'match'; key: string; sort: string; match: Partido }
-    | { kind: 'flight'; key: string; sort: string; flight: Flight }
-    | { kind: 'hotel'; key: string; sort: string; hotel: Hotel; tipo: 'in' | 'out' }
-    | { kind: 'placesel'; key: string; sort: string; name: string; who: TravelerId[] };
+    | { kind: 'item'; key: string; sortNum: number; item: ItineraryItem }
+    | { kind: 'ticket'; key: string; sortNum: number; ticket: Ticket }
+    | { kind: 'match'; key: string; sortNum: number; match: Partido }
+    | { kind: 'flight'; key: string; sortNum: number; flight: Flight }
+    | { kind: 'hotel'; key: string; sortNum: number; hotel: Hotel; tipo: 'in' | 'out' }
+    | { kind: 'placesel'; key: string; sortNum: number; name: string; who: TravelerId[] };
   const entries: Entry[] = [
-    ...items.map((i): Entry => ({ kind: 'item', key: i.id, sort: i.time ?? '99', item: i })),
-    ...dayTickets.map((t): Entry => ({ kind: 'ticket', key: `tk-${t.id}`, sort: t.time ?? '99', ticket: t })),
-    ...dayMatches.map((m): Entry => ({ kind: 'match', key: `wc-${m.id}`, sort: horaLocalPartido(m.fecha_hora), match: m })),
-    ...dayFlights.map((f): Entry => ({ kind: 'flight', key: `fl-${f.id}`, sort: tsTime(f.departs_at), flight: f })),
-    ...dayPlaceSel.map((ps): Entry => ({ kind: 'placesel', key: `ps-${ps.place_id}`, sort: '00:30', name: ps.name, who: ps.who })),
+    ...items.map((i): Entry => ({ kind: 'item', key: i.id, sortNum: itemSortNum(i), item: i })),
+    ...dayTickets.map((t): Entry => ({ kind: 'ticket', key: `tk-${t.id}`, sortNum: toMin(t.time), ticket: t })),
+    ...dayMatches.map((m): Entry => ({ kind: 'match', key: `wc-${m.id}`, sortNum: toMin(horaLocalPartido(m.fecha_hora)), match: m })),
+    ...dayFlights.map((f): Entry => ({ kind: 'flight', key: `fl-${f.id}`, sortNum: toMin(tsTime(f.departs_at)), flight: f })),
+    ...dayPlaceSel.map((ps): Entry => ({ kind: 'placesel', key: `ps-${ps.place_id}`, sortNum: 30, name: ps.name, who: ps.who })),
     // Check-out al inicio del día (te vas en la mañana); check-in al final (llegas).
     ...dayHotels.flatMap((h): Entry[] => [
-      ...(h.check_out === activeDate ? [{ kind: 'hotel', key: `ho-out-${h.id}`, sort: '00:00', hotel: h, tipo: 'out' } as Entry] : []),
-      ...(h.check_in === activeDate ? [{ kind: 'hotel', key: `ho-in-${h.id}`, sort: '23:59', hotel: h, tipo: 'in' } as Entry] : []),
+      ...(h.check_out === activeDate ? [{ kind: 'hotel', key: `ho-out-${h.id}`, sortNum: -10, hotel: h, tipo: 'out' } as Entry] : []),
+      ...(h.check_in === activeDate ? [{ kind: 'hotel', key: `ho-in-${h.id}`, sortNum: 1500, hotel: h, tipo: 'in' } as Entry] : []),
     ]),
-  ].sort((a, b) => a.sort.localeCompare(b.sort));
+  ].sort((a, b) => a.sortNum - b.sortNum);
 
   async function addItem() {
     if (!fTitle.trim() || saving) return;
@@ -113,6 +116,8 @@ export default function ItinerarioModule({ trip, identity }: {
       title: fTitle.trim(),
       place_id: null,
       note: fNote.trim() || null,
+      done: false,
+      position: null,
       created_by: identity,
       created_at: new Date().toISOString(),
     };
@@ -135,6 +140,36 @@ export default function ItinerarioModule({ trip, identity }: {
       return;
     }
     apply({ eventType: 'DELETE', new: {}, old: { id } });
+  }
+
+  async function toggleDone(it: ItineraryItem) {
+    const optimistic = { ...it, done: !it.done };
+    const { data, error } = await mutate({
+      table: 'itinerary_items', type: 'update', id: it.id, patch: { done: !it.done },
+    });
+    if (error) { setErrMsg('No se pudo actualizar. Revisa tu conexión.'); return; }
+    apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
+  }
+
+  // Sube/baja un plan: le asigna una posición numérica que lo deja entre sus
+  // vecinos en la lista visible (default por hora; tras mover, manda la posición).
+  async function moveItem(itemKey: string, dir: -1 | 1) {
+    const idx = entries.findIndex((e) => e.key === itemKey);
+    const target = entries[idx];
+    if (idx < 0 || target.kind !== 'item') return;
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= entries.length) return;
+    // Vecino al otro lado para calcular el punto medio.
+    const farIdx = idx + dir * 2;
+    const here = entries[swapIdx].sortNum;
+    const far = farIdx >= 0 && farIdx < entries.length ? entries[farIdx].sortNum : here + dir * 2;
+    const newPos = (here + far) / 2;
+    const optimistic = { ...target.item, position: newPos };
+    const { data, error } = await mutate({
+      table: 'itinerary_items', type: 'update', id: target.item.id, patch: { position: newPos },
+    });
+    if (error) { setErrMsg('No se pudo reordenar. Revisa tu conexión.'); return; }
+    apply({ eventType: 'UPDATE', new: data ?? optimistic, old: {} });
   }
 
   if (!trip.days.length) return null;
@@ -199,25 +234,52 @@ export default function ItinerarioModule({ trip, identity }: {
               e.kind === 'item' ? (
                 <motion.div
                   key={e.key}
+                  layout
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96 }}
-                  className="rounded-2xl bg-white border border-sand-dark p-4 flex items-start gap-3"
+                  className={`rounded-2xl border p-4 flex items-start gap-2 ${e.item.done ? 'bg-gray-50 border-sand-dark' : 'bg-white border-sand-dark'}`}
                 >
-                  <span className="font-mono text-sm text-brasil-green font-bold w-12 flex-shrink-0 pt-0.5">
+                  {/* Marcar visitado */}
+                  <button
+                    onClick={() => toggleDone(e.item)}
+                    aria-label={e.item.done ? `Desmarcar ${e.item.title}` : `Marcar ${e.item.title} como visitado`}
+                    className={`mt-0.5 shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors duration-200
+                      ${e.item.done ? 'bg-brasil-green border-brasil-green text-white' : 'border-gray-300 text-transparent'}`}
+                  >
+                    <Check className="w-4 h-4" aria-hidden />
+                  </button>
+                  <span className={`font-mono text-sm font-bold w-11 flex-shrink-0 pt-0.5 ${e.item.done ? 'text-gray-300' : 'text-brasil-green'}`}>
                     {e.item.time ? e.item.time.slice(0, 5) : '—'}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800">{e.item.title}</p>
+                    <p className={`font-semibold ${e.item.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>{e.item.title}</p>
                     {e.item.note && <p className="text-sm text-gray-500">{e.item.note}</p>}
                     <p className="text-[10px] text-gray-400 mt-1">
                       {e.item.created_by === 'andres' ? 'Andrés' : 'Melisa'}
                     </p>
                   </div>
+                  {/* Reordenar */}
+                  <div className="flex flex-col -my-1">
+                    <button
+                      onClick={() => moveItem(e.key, -1)}
+                      aria-label={`Subir ${e.item.title}`}
+                      className="min-w-9 h-7 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200"
+                    >
+                      <ChevronUp className="w-4 h-4" aria-hidden />
+                    </button>
+                    <button
+                      onClick={() => moveItem(e.key, 1)}
+                      aria-label={`Bajar ${e.item.title}`}
+                      className="min-w-9 h-7 flex items-center justify-center text-gray-300 hover:text-brasil-blue cursor-pointer transition-colors duration-200"
+                    >
+                      <ChevronDown className="w-4 h-4" aria-hidden />
+                    </button>
+                  </div>
                   <button
                     onClick={() => removeItem(e.item.id)}
                     aria-label={`Borrar ${e.item.title}`}
-                    className="min-w-11 min-h-11 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200"
+                    className="min-w-9 min-h-9 -my-1 flex items-center justify-center text-gray-300 hover:text-red-400 cursor-pointer transition-colors duration-200"
                   >
                     <Trash2 className="w-4 h-4" aria-hidden />
                   </button>

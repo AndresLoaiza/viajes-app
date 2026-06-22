@@ -40,6 +40,8 @@ export interface ItineraryItem {
   title: string;
   place_id: string | null;
   note: string | null;
+  done: boolean;             // marcado como visitado
+  position: number | null;   // orden manual; si es null, ordena por hora
   created_by: TravelerId;
   created_at: string;
 }
