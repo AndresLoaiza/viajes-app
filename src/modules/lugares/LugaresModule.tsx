@@ -48,7 +48,7 @@ export default function LugaresModule({ trip, identity }: {
       map[p.id] = {
         placeId: p.id,
         selected: pending[p.id] ?? !!row,
-        preferredDates: [],
+        preferredDates: row?.preferred_dates ?? [],
         notes: draftNotes[p.id] ?? row?.note ?? '',
       };
     });
@@ -71,6 +71,7 @@ export default function LugaresModule({ trip, identity }: {
           place_id: updated.placeId,
           selected_by: identity,
           note: updated.notes || null,
+          preferred_dates: updated.preferredDates ?? [],
           created_at: new Date().toISOString(),
         };
         const res = await mutate({ table: 'place_selections', type: 'insert', row: newRow });
@@ -102,6 +103,18 @@ export default function LugaresModule({ trip, identity }: {
           return rest;
         });
       }, 800);
+    }
+
+    // Cambio de días preferidos: persistir de inmediato (toggle discreto).
+    const datesNow = updated.preferredDates ?? [];
+    const datesBefore = row?.preferred_dates ?? [];
+    if (row && datesNow.join(',') !== datesBefore.join(',')) {
+      setErrMsg('');
+      const { data, error } = await mutate({
+        table: 'place_selections', type: 'update', id: row.id, patch: { preferred_dates: datesNow },
+      });
+      if (error) { setErrMsg('No se pudo guardar el día. Revisa tu conexión.'); return; }
+      apply({ eventType: 'UPDATE', new: data ?? { ...row, preferred_dates: datesNow }, old: {} });
     }
   }
 

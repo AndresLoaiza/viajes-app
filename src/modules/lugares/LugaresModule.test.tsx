@@ -35,6 +35,7 @@ vi.mock('../../components/PlaceCard', () => ({
       <span data-testid={`sel-${place.id}`}>{selection.selected ? 'on' : 'off'}</span>
       <button onClick={() => onChange({ ...selection, selected: !selection.selected })}>toggle-{place.id}</button>
       <button onClick={() => onChange({ ...selection, notes: 'nota nueva' })}>note-{place.id}</button>
+      <button onClick={() => onChange({ ...selection, preferredDates: ['sat-27'] })}>day-{place.id}</button>
     </div>
   ),
 }));
@@ -52,7 +53,7 @@ const trip = { id: 'brasil-2026', cities: [city] } as unknown as TripConfig;
 
 const sel = (over: Partial<TripPlaceSelection> = {}): TripPlaceSelection => ({
   id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'p1',
-  selected_by: 'andres', note: null, created_at: '2026-06-01T00:00:00Z', ...over,
+  selected_by: 'andres', note: null, preferred_dates: [], created_at: '2026-06-01T00:00:00Z', ...over,
 });
 
 function openCategory() {
@@ -125,6 +126,18 @@ describe('LugaresModule', () => {
     const op = mutate.mock.calls[0][0] as { type: string; patch: { note: string } };
     expect(op.type).toBe('update');
     expect(op.patch.note).toBe('nota nueva');
+  });
+
+  it('elegir un día preferido → update preferred_dates', async () => {
+    tableRows = [sel()];
+    openCategory();
+    fireEvent.click(screen.getByRole('button', { name: 'day-p1' }));
+
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const op = mutate.mock.calls[0][0] as { type: string; patch: { preferred_dates: string[] } };
+    expect(op.type).toBe('update');
+    expect(op.patch.preferred_dates).toEqual(['sat-27']);
+    expect(apply).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'UPDATE' }));
   });
 
   it('error al marcar → alerta', async () => {

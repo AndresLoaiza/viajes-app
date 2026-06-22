@@ -141,5 +141,6 @@ export interface TripPlaceSelection {
   place_id: string;
   selected_by: TravelerId;
   note: string | null;
+  preferred_dates: string[];   // ids de TravelDate (ej. 'sat-27') preferidos
   created_at: string;
 }
