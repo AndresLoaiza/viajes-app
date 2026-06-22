@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, BedDouble, Check, ChevronDown, ChevronUp, FileText, MoveRight, Plane, Plus, Ticket as TicketIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -6,6 +6,7 @@ import { useTable } from '../../lib/realtime';
 import { mutate, uuid } from '../../lib/mutate';
 import { formatDayEs, isToday } from '../../lib/dates';
 import { tsDate, tsTime } from '../../lib/logistica';
+import { fetchWeather, wmo, type Weather } from '../../lib/weather';
 import {
   useMundial, partidosDeFecha, horaLocalPartido, etiquetaFase, porDefinir, marcador,
   type Partido,
@@ -207,6 +208,8 @@ export default function ItinerarioModule({ trip, identity }: {
         <h2 className="font-display font-bold text-xl text-gray-800">{formatDayEs(activeDate)}</h2>
         {ciudad && <p className="text-sm text-gray-500">{ciudad.flag} {ciudad.name}</p>}
 
+        {ciudad?.center && <DayWeatherStrip center={ciudad.center} date={activeDate} />}
+
         {day?.note && (
           <div className="flex items-center gap-2 rounded-xl bg-brasil-yellow/25 text-amber-800 text-sm font-semibold px-3 py-2 mt-3">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden />
@@ -396,6 +399,48 @@ export default function ItinerarioModule({ trip, identity }: {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Tira de clima por hora del día activo (Open-Meteo, cache 1h). */
+function DayWeatherStrip({ center, date }: { center: [number, number]; date: string }) {
+  const [data, setData] = useState<Weather | null>(null);
+  const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading');
+
+  useEffect(() => {
+    let alive = true;
+    // Reset intencional a "cargando" al cambiar de día/ciudad.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState('loading');
+    fetchWeather(center[0], center[1])
+      .then((w) => { if (alive) { setData(w); setState('ok'); } })
+      .catch(() => { if (alive) setState('error'); });
+    return () => { alive = false; };
+  }, [center]);
+
+  if (state === 'error') return null;
+  const horas = data?.hourly.filter((h) => h.time.slice(0, 10) === date) ?? [];
+  // Fuera de la ventana de pronóstico (≈16 días) no hay horas para ese día.
+  if (state === 'ok' && horas.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Clima por hora</p>
+      {state === 'loading' ? (
+        <p className="text-xs text-gray-400">Cargando clima…</p>
+      ) : (
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {horas.map((h) => (
+            <div key={h.time} className="shrink-0 w-12 rounded-xl bg-sand/40 py-1.5 flex flex-col items-center gap-0.5">
+              <span className="text-[10px] text-gray-500">{h.time.slice(11, 16)}</span>
+              <span className="text-base leading-none" aria-hidden>{wmo(h.code).emoji}</span>
+              <span className="text-xs font-bold text-gray-800">{h.temp}°</span>
+              <span className="text-[9px] text-brasil-blue">{h.rain}%</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
