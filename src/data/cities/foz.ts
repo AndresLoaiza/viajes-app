@@ -17,7 +17,10 @@ const foz: CityConfig = {
   welcomeSubtitle: 'Las cataratas más impresionantes del mundo te esperan en Foz do Iguaçu.',
   travelerName: 'Melisa',
   senderName: 'Andrés',
-  dates: [],
+  dates: [
+    { id: 'mon-29', label: 'Lunes 29 jun', shortLabel: 'Lun 29' },
+    { id: 'tue-30', label: 'Martes 30 jun', shortLabel: 'Mar 30', note: 'Noche → vuelo a SP' },
+  ],
   categories: [
     { id: 'cataratas',   name: 'Cataratas & Naturaleza',     emoji: '🌊', color: '#1B8CA8' },
     { id: 'ingenieria',  name: 'Ingeniería & Monumentos',    emoji: '🏗️', color: '#4A5568' },

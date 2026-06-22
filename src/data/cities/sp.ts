@@ -18,7 +18,11 @@ const sp: CityConfig = {
   welcomeSubtitle: '¿Lista para São Paulo? Escoge los lugares que quieres conocer en la ciudad.',
   travelerName: 'Melisa',
   senderName: 'Andrés',
-  dates: [],
+  dates: [
+    { id: 'wed-1', label: 'Miércoles 1 jul', shortLabel: 'Mié 1' },
+    { id: 'thu-2', label: 'Jueves 2 jul', shortLabel: 'Jue 2' },
+    { id: 'fri-3', label: 'Viernes 3 jul', shortLabel: 'Vie 3', note: 'Noche → vuelo a casa' },
+  ],
   categories: [
     { id: 'museos', name: 'Museos & Arte', emoji: '🏛️', color: '#C0392B' },
     { id: 'cultura', name: 'Centros Culturales', emoji: '🎭', color: '#8E44AD' },

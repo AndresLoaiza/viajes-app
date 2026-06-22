@@ -10,7 +10,7 @@ import {
   useMundial, partidosDeFecha, horaLocalPartido, etiquetaFase, porDefinir, marcador,
   type Partido,
 } from '../../lib/mundial';
-import type { TripConfig, ItineraryItem, Ticket, Flight, Hotel, TravelerId } from '../../types/trip';
+import type { TripConfig, ItineraryItem, Ticket, Flight, Hotel, TravelerId, TripPlaceSelection } from '../../types/trip';
 
 const docUrl = (path: string) =>
   supabase.storage.from('docs').getPublicUrl(path).data.publicUrl;
@@ -34,6 +34,7 @@ export default function ItinerarioModule({ trip, identity }: {
   const { rows: ticketRows } = useTable<Ticket>('tickets', trip.id);
   const { rows: flightRows } = useTable<Flight>('flights', trip.id);
   const { rows: hotelRows } = useTable<Hotel>('hotels', trip.id);
+  const { rows: placeSels } = useTable<TripPlaceSelection>('place_selections', trip.id);
   const { partidos } = useMundial();
   const [showForm, setShowForm] = useState(false);
   const [fTime, setFTime] = useState('');
@@ -57,17 +58,37 @@ export default function ItinerarioModule({ trip, identity }: {
   // Vuelos del día (por fecha de salida) y hoteles (check-in/check-out del día).
   const dayFlights = flightRows.filter((f) => tsDate(f.departs_at) === activeDate);
   const dayHotels = hotelRows.filter((h) => h.check_in === activeDate || h.check_out === activeDate);
+  // Lugares marcados con un día preferido = hoy (read-only, desde Lugares). El id
+  // de TravelDate ('sat-27') codifica el día del mes; se cruza con el nº del día
+  // activo y la ciudad. Se actualiza solo cuando marcan el día en Lugares.
+  const activeDayNum = activeDate ? Number(activeDate.slice(8)) : NaN;
+  const dayPlaceSel = (() => {
+    if (!day) return [] as { place_id: string; name: string; who: TravelerId[] }[];
+    const byPlace = new Map<string, Set<TravelerId>>();
+    placeSels.forEach((s) => {
+      if (s.city_id !== day.cityId) return;
+      if (!s.preferred_dates?.some((id) => Number(id.split('-').pop()) === activeDayNum)) return;
+      const set = byPlace.get(s.place_id) ?? new Set<TravelerId>();
+      set.add(s.selected_by);
+      byPlace.set(s.place_id, set);
+    });
+    const placeName = (pid: string) =>
+      trip.cities.find((c) => c.id === day.cityId)?.places.find((p) => p.id === pid)?.name ?? pid;
+    return [...byPlace.entries()].map(([place_id, who]) => ({ place_id, name: placeName(place_id), who: [...who] }));
+  })();
   type Entry =
     | { kind: 'item'; key: string; sort: string; item: ItineraryItem }
     | { kind: 'ticket'; key: string; sort: string; ticket: Ticket }
     | { kind: 'match'; key: string; sort: string; match: Partido }
     | { kind: 'flight'; key: string; sort: string; flight: Flight }
-    | { kind: 'hotel'; key: string; sort: string; hotel: Hotel; tipo: 'in' | 'out' };
+    | { kind: 'hotel'; key: string; sort: string; hotel: Hotel; tipo: 'in' | 'out' }
+    | { kind: 'placesel'; key: string; sort: string; name: string; who: TravelerId[] };
   const entries: Entry[] = [
     ...items.map((i): Entry => ({ kind: 'item', key: i.id, sort: i.time ?? '99', item: i })),
     ...dayTickets.map((t): Entry => ({ kind: 'ticket', key: `tk-${t.id}`, sort: t.time ?? '99', ticket: t })),
     ...dayMatches.map((m): Entry => ({ kind: 'match', key: `wc-${m.id}`, sort: horaLocalPartido(m.fecha_hora), match: m })),
     ...dayFlights.map((f): Entry => ({ kind: 'flight', key: `fl-${f.id}`, sort: tsTime(f.departs_at), flight: f })),
+    ...dayPlaceSel.map((ps): Entry => ({ kind: 'placesel', key: `ps-${ps.place_id}`, sort: '00:30', name: ps.name, who: ps.who })),
     // Check-out al inicio del día (te vas en la mañana); check-in al final (llegas).
     ...dayHotels.flatMap((h): Entry[] => [
       ...(h.check_out === activeDate ? [{ kind: 'hotel', key: `ho-out-${h.id}`, sort: '00:00', hotel: h, tipo: 'out' } as Entry] : []),
@@ -230,8 +251,10 @@ export default function ItinerarioModule({ trip, identity }: {
                 <MatchRow key={e.key} match={e.match} />
               ) : e.kind === 'flight' ? (
                 <FlightRow key={e.key} flight={e.flight} />
-              ) : (
+              ) : e.kind === 'hotel' ? (
                 <HotelRow key={e.key} hotel={e.hotel} tipo={e.tipo} />
+              ) : (
+                <PlaceSelRow key={e.key} name={e.name} who={e.who} />
               ),
             )}
           </AnimatePresence>
@@ -357,6 +380,27 @@ function HotelRow({ hotel: h, tipo }: { hotel: Hotel; tipo: 'in' | 'out' }) {
         </p>
         <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
           {tipo === 'in' ? 'Check-in' : 'Check-out'}
+        </span>
+      </div>
+    </motion.div>
+  );
+}
+
+/** Lugar marcado en Lugares con este día como preferido (read-only). */
+function PlaceSelRow({ name, who }: { name: string; who: TravelerId[] }) {
+  const quienes = who.map((t) => (t === 'andres' ? 'Andrés' : 'Melisa')).join(' y ');
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      className="rounded-2xl bg-rose-50 border border-rose-200 p-4 flex items-start gap-3"
+    >
+      <span className="font-mono text-sm text-rose-500 font-bold w-12 flex-shrink-0 pt-0.5" aria-hidden>📍</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-gray-800">{name}</p>
+        <span className="text-[10px] font-bold uppercase tracking-wide text-rose-500/80">
+          ❤️ Quieren ir · {quienes}
         </span>
       </div>
     </motion.div>

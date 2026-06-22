@@ -4,7 +4,7 @@ import type { ItineraryItem, Ticket, TripConfig } from '../../types/trip';
 import type { CityConfig } from '../../types/city';
 
 const apply = vi.fn();
-const stores: Record<string, unknown[]> = { itinerary_items: [], tickets: [] };
+const stores: Record<string, unknown[]> = { itinerary_items: [], tickets: [], place_selections: [] };
 vi.mock('../../lib/realtime', () => ({
   useTable: (table: string) => ({ rows: stores[table] ?? [], loading: false, apply }),
 }));
@@ -36,7 +36,10 @@ const partido = (over: Partial<Partido> = {}): Partido => ({
   gol_local_real: null, gol_visitante_real: null, estado: 'programado', ...over,
 });
 
-const cities = [{ id: 'rio', name: 'Río', flag: '🇧🇷' }] as unknown as CityConfig[];
+const cities = [{
+  id: 'rio', name: 'Río', flag: '🇧🇷',
+  places: [{ id: 'cristo', name: 'Cristo Redentor', category: 'cultura', description: '', images: [] }],
+}] as unknown as CityConfig[];
 const trip = {
   id: 'brasil-2026',
   days: [
@@ -62,7 +65,7 @@ function renderModule(t: TripConfig = trip) {
 describe('ItinerarioModule', () => {
   beforeEach(() => {
     apply.mockClear(); mutate.mockClear();
-    stores.itinerary_items = []; stores.tickets = [];
+    stores.itinerary_items = []; stores.tickets = []; stores.place_selections = [];
     partidosMock = [];
     mutateResult = { data: { id: 'new-1' }, error: null };
     vi.stubGlobal('confirm', () => true);
@@ -103,6 +106,26 @@ describe('ItinerarioModule', () => {
     render(<ItinerarioModule trip={trip} identity="andres" />);
     expect(screen.getByText(/Por definir/)).toBeInTheDocument();
     expect(screen.getByText(/Mundial · Eliminación/)).toBeInTheDocument();
+  });
+
+  it('lugar con día preferido = hoy aparece en Días (read-only)', () => {
+    // día activo por defecto = 2026-06-25 (día 25); id 'thu-25' codifica el 25
+    stores.place_selections = [{
+      id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'cristo',
+      selected_by: 'melisa', note: null, preferred_dates: ['thu-25'], created_at: '',
+    }];
+    renderModule();
+    expect(screen.getByText('Cristo Redentor')).toBeInTheDocument();
+    expect(screen.getByText(/Quieren ir · Melisa/)).toBeInTheDocument();
+  });
+
+  it('lugar con día preferido distinto NO aparece hoy', () => {
+    stores.place_selections = [{
+      id: 's1', trip_id: 'brasil-2026', city_id: 'rio', place_id: 'cristo',
+      selected_by: 'melisa', note: null, preferred_dates: ['fri-26'], created_at: '',
+    }];
+    renderModule(); // activo = 25
+    expect(screen.queryByText('Cristo Redentor')).toBeNull();
   });
 
   it('agregar plan → insert con date del día activo + apply', async () => {
