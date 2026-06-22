@@ -29,30 +29,9 @@ export default function InicioModule({ trip }: { trip: TripConfig }) {
     : [];
   const ciudadHoy = hoy ? trip.cities.find((c) => c.id === hoy.cityId) : null;
   const terminado = daysUntil(trip.endDate) < 0;
-  // Imagen grande del destino arriba del Inicio (arte/foto de la 1ª ciudad).
-  const heroImg = trip.cities[0]?.heroImage ?? trip.cities[0]?.coverImage;
 
   return (
     <div className="max-w-xl mx-auto px-5 py-6 space-y-6">
-      {heroImg && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="relative -mx-5 -mt-6 h-56 overflow-hidden"
-        >
-          <img src={heroImg} alt={trip.name} className="absolute inset-0 w-full h-full object-cover" />
-          <div
-            aria-hidden
-            className="absolute inset-0"
-            style={{ background: 'linear-gradient(to top, rgba(0,39,118,0.85), rgba(0,39,118,0.05) 60%)' }}
-          />
-          <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-            <p className="text-white/85 text-sm font-semibold">{trip.flag} {trip.cities.map((c) => c.name.split(' ')[0]).join(' · ')}</p>
-            <h1 className="font-display font-black text-4xl leading-tight drop-shadow">{trip.name}</h1>
-          </div>
-        </motion.div>
-      )}
-
       {dias > 0 && (
         <motion.section
           initial={{ opacity: 0, scale: 0.96 }}
