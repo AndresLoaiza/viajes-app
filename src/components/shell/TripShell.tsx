@@ -23,8 +23,10 @@ export default function TripShell({ trip, onBack, renderModule }: {
   onBack: () => void;
   renderModule: (m: ModuleId) => React.ReactNode;
 }) {
-  const [active, setActive] = useState<ModuleId>(trip.modules[0]);
+  const home = trip.modules[0];
+  const [active, setActive] = useState<ModuleId>(home);
   const showNav = trip.modules.length > 1;
+  const atHome = active === home;
 
   return (
     <div className="min-h-svh bg-warm-white" style={{ paddingBottom: showNav ? 'calc(6rem + env(safe-area-inset-bottom))' : 0 }}>
@@ -33,8 +35,8 @@ export default function TripShell({ trip, onBack, renderModule }: {
         style={{ backgroundColor: '#002776' }}
       >
         <button
-          onClick={onBack}
-          aria-label="Volver a mis viajes"
+          onClick={() => (atHome ? onBack() : setActive(home))}
+          aria-label={atHome ? 'Volver a mis viajes' : 'Volver a inicio'}
           className="min-w-11 min-h-11 -ml-2 flex items-center justify-center text-white/80 hover:text-white cursor-pointer transition-colors duration-200"
         >
           <ArrowLeft className="w-5 h-5" aria-hidden />

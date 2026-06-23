@@ -15,7 +15,9 @@ vi.mock('leaflet', () => {
     map: () => chain(),
     tileLayer: () => chain(),
     markerClusterGroup: () => chain(),
+    layerGroup: () => chain(),
     marker: () => chain(),
+    circle: () => chain(),
     divIcon: () => ({}),
     latLngBounds: () => chain(),
   };

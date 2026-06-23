@@ -39,6 +39,16 @@ function pinIcon(kind: LayerKey) {
   });
 }
 
+function meIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:18px;height:18px;border-radius:50%;background:#2563EB;border:3px solid #fff;box-shadow:0 0 0 2px rgba(37,99,235,.4),0 1px 4px rgba(0,0,0,.4)"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -9],
+  });
+}
+
 interface Pin { lat: number; lng: number; kind: LayerKey; html: string }
 
 /** Mapa por ciudad (Leaflet + OSM). Capas filtrables: fotos, hoteles, lugares marcados, itinerario. */
@@ -137,6 +147,9 @@ export default function MapaModule({ trip }: { trip: TripConfig; identity: Trave
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const groupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const userLayerRef = useRef<L.LayerGroup | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -151,10 +164,39 @@ export default function MapaModule({ trip }: { trip: TripConfig; identity: Trave
       spiderfyOnMaxZoom: true,
       chunkedLoading: true,
     }).addTo(map);
+    userLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
     map.setView(city?.center ?? [4.6, -74.08], city?.zoom ?? 11);
     return () => { map.remove(); mapRef.current = null; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Geolocalización del usuario ─────────────────────────────────────────
+  function locateMe() {
+    const map = mapRef.current, layer = userLayerRef.current;
+    if (!map || !layer) return;
+    if (!('geolocation' in navigator)) { setLocError('Geolocalización no disponible en este navegador'); return; }
+    setLocating(true);
+    setLocError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        layer.clearLayers();
+        L.circle([lat, lng], { radius: accuracy, color: '#2563EB', weight: 1, fillColor: '#2563EB', fillOpacity: 0.12 }).addTo(layer);
+        L.marker([lat, lng], { icon: meIcon(), zIndexOffset: 1000 }).bindPopup('Estás aquí').addTo(layer);
+        map.setView([lat, lng], Math.max(map.getZoom(), 14));
+      },
+      (err) => {
+        setLocating(false);
+        setLocError(
+          err.code === err.PERMISSION_DENIED
+            ? 'Permiso de ubicación denegado'
+            : 'No se pudo obtener tu ubicación',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+  }
 
   // ── Redibuja marcadores + encuadra cuando cambian pines/ciudad ──────────
   useEffect(() => {
@@ -221,6 +263,20 @@ export default function MapaModule({ trip }: { trip: TripConfig; identity: Trave
 
       <div className="relative flex-1 min-h-0 rounded-2xl overflow-hidden border-2 border-sand-dark">
         <div ref={containerRef} className="absolute inset-0" />
+        <button
+          onClick={locateMe}
+          disabled={locating}
+          aria-label="Mostrar mi ubicación"
+          className="absolute bottom-3 right-3 z-[1000] inline-flex items-center gap-1.5 rounded-full bg-white shadow-md border-2 border-sand-dark px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer disabled:opacity-60 hover:bg-sand transition-colors duration-200"
+        >
+          <span aria-hidden>{locating ? '⏳' : '📍'}</span>
+          {locating ? 'Buscando…' : 'Mi ubicación'}
+        </button>
+        {locError && (
+          <div className="absolute bottom-3 left-3 z-[1000] max-w-[60%] bg-red-600 text-white text-xs font-semibold rounded-xl px-3 py-2 shadow-md">
+            {locError}
+          </div>
+        )}
         {pins.length === 0 && (
           <div className="absolute inset-0 z-[500] pointer-events-none flex items-center justify-center">
             <p className="bg-white/90 rounded-xl px-4 py-2 text-sm text-gray-500 font-semibold shadow">
