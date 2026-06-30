@@ -9,6 +9,7 @@ vi.mock('../../lib/dates', () => ({
 
 import TripHub from './TripHub';
 import { trips } from '../../data/trips';
+import { destinos } from '../../data/destinos';
 
 describe('TripHub', () => {
   beforeEach(() => daysUntil.mockReset());
@@ -40,6 +41,14 @@ describe('TripHub', () => {
     daysUntil.mockReturnValueOnce(-1).mockReturnValueOnce(3).mockReturnValue(5);
     render(<TripHub onOpen={() => {}} />);
     expect(screen.getByText('¡Estamos de viaje!')).toBeInTheDocument();
+  });
+
+  it('muestra la sección de próximos destinos con Isla Fuerte', () => {
+    daysUntil.mockReturnValue(7);
+    render(<TripHub onOpen={() => {}} />);
+    expect(screen.getByText('Próximos destinos')).toBeInTheDocument();
+    expect(screen.getByText(/Isla Fuerte/)).toBeInTheDocument();
+    destinos.forEach((d) => expect(screen.getByText(new RegExp(d.name))).toBeInTheDocument());
   });
 
   it('click en un viaje → onOpen con ese viaje', () => {
