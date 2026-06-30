@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { Camera, ChevronRight } from 'lucide-react';
+import { Camera, ChevronRight, Compass } from 'lucide-react';
 import { trips } from '../../data/trips';
+import { destinos } from '../../data/destinos';
 import { daysUntil, formatDayEs } from '../../lib/dates';
 import type { TripConfig } from '../../types/trip';
 
@@ -69,6 +70,39 @@ export default function TripHub({ onOpen }: { onOpen: (trip: TripConfig) => void
             );
           })}
         </div>
+
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 + trips.length * 0.12, duration: 0.35 }}
+          className="mt-10"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Compass className="w-5 h-5 text-brasil-green" aria-hidden />
+            <h2 className="font-display font-bold text-xl text-gray-800">Próximos destinos</h2>
+          </div>
+          <p className="text-gray-500 text-sm mb-4">Ideas para nuestro próximo viaje 💭</p>
+
+          <ul className="space-y-2.5">
+            {destinos.map((destino, i) => (
+              <motion.li
+                key={destino.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 + trips.length * 0.12 + i * 0.06, duration: 0.3 }}
+                className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
+              >
+                <span className="text-2xl shrink-0" aria-hidden>{destino.emoji}</span>
+                <div className="min-w-0">
+                  <p className="font-display font-semibold text-gray-800 leading-tight">
+                    {destino.flag} {destino.name}
+                  </p>
+                  <p className="text-gray-500 text-sm truncate">{destino.note}</p>
+                </div>
+              </motion.li>
+            ))}
+          </ul>
+        </motion.section>
       </main>
     </div>
   );
