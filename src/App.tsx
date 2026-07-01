@@ -10,6 +10,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import InstallPrompt from './components/InstallPrompt';
 import SyncIndicator from './components/SyncIndicator';
 import { getStoredIdentity } from './lib/identity';
+import { activeTrip } from './data/trips';
 import type { TravelerId, TripConfig, ModuleId } from './types/trip';
 
 // Lazy: cada módulo es su propio chunk → carga inicial liviana, Mapa (Leaflet)
@@ -35,7 +36,9 @@ function ModuleLoading() {
 // El flujo viejo de selección/Gist vive en src/legacy/SelectionApp.tsx como referencia.
 export default function App() {
   const [identity, setIdentity] = useState<TravelerId | null>(getStoredIdentity());
-  const [trip, setTrip] = useState<TripConfig | null>(null);
+  // Si hay un viaje en curso hoy, abrir directo su shell (saltar el hub).
+  // "Volver" (onBack → null) siempre lleva al hub de viajes.
+  const [trip, setTrip] = useState<TripConfig | null>(activeTrip);
 
   const content = !identity ? (
     <AccessGate onUnlocked={setIdentity} />
